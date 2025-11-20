@@ -39,7 +39,7 @@ macro_rules! log_var(($var:ident) => (log!(concat!(stringify!($var), " = {:?}"),
 
 fn main() {
     // If we are doing runtime linking, just return.
-    #[cfg(feature = "runtime_linking")]
+    #[cfg(feature = "tensorflow_runtime_linking")]
     return;
 
     // DO NOT RELY ON THIS
