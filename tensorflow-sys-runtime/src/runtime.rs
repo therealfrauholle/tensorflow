@@ -47,7 +47,7 @@ macro_rules! link {
         #[derive(Default)]
         pub(crate) struct Functions {
             $(
-                pub $name: Option<unsafe extern fn($($pname: $pty), *) $(-> $ret)*>,
+                pub $name: Option<unsafe extern "C" fn($($pname: $pty), *) $(-> $ret)*>,
             )+
         }
 
