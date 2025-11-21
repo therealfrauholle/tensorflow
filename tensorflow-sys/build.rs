@@ -72,12 +72,10 @@ fn main() {
     };
     log_var!(force_src);
 
-    let prebuilt_supported = match (&target_arch() as &str, &target_os() as &str) {
-        ("x86_64", "linux") => true,
-        ("x86_64", "windows") => true,
-        ("aarch64", "macos") => true,
-        _ => false,
-    };
+    let prebuilt_supported = matches!(
+        (target_arch().as_str(), target_os().as_str()),
+        ("x86_64", "linux") | ("x86_64", "windows") | ("aarch64", "macos")
+    );
     if !force_src && prebuilt_supported {
         install_prebuilt();
     } else {
