@@ -226,10 +226,10 @@ mod tests {
         dims: &[u64],
         values: &[f32],
     ) -> Result<Variable, Status> {
-        Ok(Variable::builder()
+        Variable::builder()
             .const_initial_value(Tensor::new(dims).with_values(values)?)
             .data_type(DataType::Float)
-            .build(&mut scope.with_op_name(name))?)
+            .build(&mut scope.with_op_name(name))
     }
 
     fn create_assignment(
