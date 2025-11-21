@@ -426,7 +426,7 @@ mod tests {
                     Some(len) => assert_eq!(&ary[0..len], records[i].as_bytes()),
                     None => break,
                 },
-                Err(e @ _) => {
+                Err(e) => {
                     panic!("Received an unexpected error: {:?}", e);
                 }
             }
