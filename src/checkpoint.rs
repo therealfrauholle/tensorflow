@@ -289,29 +289,25 @@ mod tests {
         assign_data: &AssignData,
         values: &[&[f32]],
     ) -> Result<(), Status> {
-        let mut values_fed: Vec<Tensor<f32>> =
-            Vec::with_capacity(assign_data.placeholder_ops.len());
+        assert_eq!(
+            assign_data.placeholder_ops.len(),
+            scope_data.variables.len()
+        );
+        assert_eq!(assign_data.placeholder_ops.len(), values.len());
+
+        let tensor: Vec<Tensor<f32>> = scope_data
+            .variables
+            .iter()
+            .zip(values.iter())
+            .map(|(variable, value)| {
+                Tensor::new(variable.shape().all_dimensions()?.as_ref()).with_values(value)
+            })
+            .collect::<Result<_, _>>()?;
+
         let mut session_run = SessionRunArgs::new();
-        for i_var in 0..assign_data.placeholder_ops.len() {
-            let value_fed_as_tensor = Tensor::new(
-                scope_data.variables[i_var]
-                    .shape()
-                    .0
-                    .as_ref()
-                    .ok_or(Status::new_set(Code::Internal, "Shape not present")?)?
-                    .iter()
-                    .map(|o| {
-                        o.map(|i| i as u64)
-                            .ok_or(Status::new_set(Code::Internal, "Shape item not present")?)
-                    })
-                    .collect::<Result<Vec<u64>, Status>>()?
-                    .as_ref(),
-            )
-            .with_values(&values[i_var])?;
-            values_fed.push(value_fed_as_tensor);
-        }
-        for i_var in 0..assign_data.placeholder_ops.len() {
-            session_run.add_feed(&assign_data.placeholder_ops[i_var], 0, &values_fed[i_var]);
+
+        for (tensor, placeholder) in tensor.iter().zip(assign_data.placeholder_ops.iter()) {
+            session_run.add_feed(placeholder, 0, tensor);
         }
         session_run.add_target(&assign_data.assign_op);
         session.run(&mut session_run)?;
