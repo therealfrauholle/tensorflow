@@ -272,7 +272,7 @@ mod tests {
         let mut placeholders: Vec<Operation> = Vec::new();
         let mut no_op_bld = ops::NoOp::new();
         for var in scope_data.variables.as_ref() {
-            let (placeholder, assign_op) = create_assignment(&var, &mut placeholder_scope)?;
+            let (placeholder, assign_op) = create_assignment(var, &mut placeholder_scope)?;
             placeholders.push(placeholder);
             no_op_bld = no_op_bld.add_control_input(assign_op);
         }
@@ -294,7 +294,7 @@ mod tests {
         let mut session_run = SessionRunArgs::new();
         for i_var in 0..assign_data.placeholder_ops.len() {
             let value_fed_as_tensor = Tensor::new(
-                &scope_data.variables[i_var]
+                scope_data.variables[i_var]
                     .shape()
                     .0
                     .as_ref()

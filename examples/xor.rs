@@ -88,7 +88,7 @@ fn train(
     label_tensor[0] = ((sample_seed & 1) ^ ((sample_seed >> 1) & 1)) as f32;
     let mut run_args = SessionRunArgs::new();
     run_args.add_target(optimize);
-    let error_squared_fetch = run_args.request_fetch(&error, 0);
+    let error_squared_fetch = run_args.request_fetch(error, 0);
     run_args.add_feed(input, 0, &input_tensor);
     run_args.add_feed(output, 0, &label_tensor);
     session.run(&mut run_args)?;
