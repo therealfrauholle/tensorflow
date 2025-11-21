@@ -217,7 +217,7 @@ fn install_prebuilt() {
         VERSION, proc_type, os, arch, ext
     );
     log_var!(binary_url);
-    let short_file_name = binary_url.split('/').last().unwrap();
+    let short_file_name = binary_url.split('/').next_back().unwrap();
     let mut base_name = short_file_name.to_string();
     remove_suffix(&mut base_name, ext);
     log_var!(base_name);
