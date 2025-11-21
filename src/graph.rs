@@ -2593,10 +2593,10 @@ mod tests {
                 .unwrap();
             nd.add_input(variable_op.clone());
             nd.add_input(variable_op.clone());
-            nd.set_attr_float("tolerance", 3.14).unwrap();
+            nd.set_attr_float("tolerance", 42.42).unwrap();
             nd.finish().unwrap()
         };
-        assert_eq!(3.14, op.get_attr_float("tolerance").unwrap());
+        assert_eq!(42.42, op.get_attr_float("tolerance").unwrap());
 
         let op = {
             let mut nd = g.new_operation("Bucketize", "Bucketize").unwrap();
