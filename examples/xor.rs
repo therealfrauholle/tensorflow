@@ -249,21 +249,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     dir.push("tf-rust-example-xor-saved-model");
     let mut dir2 = env::temp_dir();
     dir2.push("tf-rust-example-xor-saved-model2");
-    match fs::remove_dir_all(&dir) {
-        Err(e) => {
-            if e.kind() != ErrorKind::NotFound {
-                return Err(Box::new(e));
-            }
+    if let Err(e) = fs::remove_dir_all(&dir) {
+        if e.kind() != ErrorKind::NotFound {
+            return Err(Box::new(e));
         }
-        Ok(_) => (),
     }
-    match fs::remove_dir_all(&dir2) {
-        Err(e) => {
-            if e.kind() != ErrorKind::NotFound {
-                return Err(Box::new(e));
-            }
+    if let Err(e) = fs::remove_dir_all(&dir2) {
+        if e.kind() != ErrorKind::NotFound {
+            return Err(Box::new(e));
         }
-        Ok(_) => (),
     }
     build_and_train_and_save(&dir)?;
     // Ensure that the saved model works even when moved.
