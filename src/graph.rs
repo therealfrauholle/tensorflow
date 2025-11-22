@@ -7,6 +7,7 @@ use super::Shape;
 use super::Status;
 use super::Tensor;
 use super::TensorType;
+use crate::tf;
 use libc::c_char;
 use libc::c_float;
 use libc::c_int;
@@ -27,10 +28,6 @@ use std::slice;
 use std::str::FromStr;
 use std::str::Utf8Error;
 use std::sync::Arc;
-#[cfg(feature = "default")]
-use tensorflow_sys as tf;
-#[cfg(feature = "tensorflow_runtime_linking")]
-use tensorflow_sys_runtime as tf;
 
 #[derive(Debug)]
 struct GraphImpl {
