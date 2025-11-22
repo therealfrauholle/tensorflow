@@ -2694,12 +2694,12 @@ mod tests {
 
     #[test]
     fn test_get_all_registered_kernels() {
-        assert!(get_all_registered_kernels().unwrap().len() > 0);
+        assert!(!get_all_registered_kernels().unwrap().is_empty());
     }
 
     #[test]
     fn test_get_registered_kernels_for_op() {
-        assert!(get_registered_kernels_for_op("Add").unwrap().len() > 0);
+        assert!(!get_registered_kernels_for_op("Add").unwrap().is_empty());
     }
 
     #[cfg(target_os = "linux")]
