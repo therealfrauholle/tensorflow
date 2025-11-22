@@ -305,11 +305,11 @@ mod tests {
             .collect::<Result<_, _>>()?;
 
         let mut session_run = SessionRunArgs::new();
-
         for (tensor, placeholder) in tensor.iter().zip(assign_data.placeholder_ops.iter()) {
             session_run.add_feed(placeholder, 0, tensor);
         }
         session_run.add_target(&assign_data.assign_op);
+
         session.run(&mut session_run)?;
         Ok(())
     }
@@ -320,17 +320,16 @@ mod tests {
         values: &[&[f32]],
     ) -> Result<(), Status> {
         let mut session_run = SessionRunArgs::new();
-        let mut tokens: Vec<FetchToken> = Vec::with_capacity(variables.len());
-        for i in 0..variables.len() {
-            tokens.push(session_run.request_fetch(
-                &variables[i].output().operation,
-                variables[i].output().index,
-            ));
-        }
+        let tokens: Vec<FetchToken> = variables
+            .iter()
+            .map(|variable| {
+                session_run.request_fetch(&variable.output().operation, variable.output().index)
+            })
+            .collect();
         session.run(&mut session_run)?;
-        for i in 0..variables.len() {
-            let got_tensor: Tensor<f32> = session_run.fetch(tokens[i])?;
-            assert_eq!(values[i], got_tensor.as_ref());
+        for (token, value) in tokens.into_iter().zip(values.iter()) {
+            let got_tensor: Tensor<f32> = session_run.fetch(token)?;
+            assert_eq!(value, &got_tensor.as_ref());
         }
         Ok(())
     }
