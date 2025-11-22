@@ -372,6 +372,7 @@ mod tests {
             let f = ::std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open(actual_filename)
                 .unwrap();
 
