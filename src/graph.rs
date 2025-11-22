@@ -2858,14 +2858,14 @@ mod tests {
     fn graph_get_op_def() {
         let g = Graph::new();
         // We don't want to compare the actual proto because it may change across releases.
-        assert!(g.get_op_def("Const").unwrap().len() > 0);
+        assert!(!g.get_op_def("Const").unwrap().is_empty());
     }
 
     #[test]
     fn graph_versions() {
         let g = Graph::new();
         // We don't want to compare the actual proto because it may change across releases.
-        assert!(g.versions().unwrap().len() > 0);
+        assert!(!g.versions().unwrap().is_empty());
     }
 
     #[test]
