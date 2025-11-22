@@ -2638,8 +2638,8 @@ mod tests {
             nd.set_attr_bool("use_locking", false).unwrap();
             nd.finish().unwrap()
         };
-        assert_eq!(true, op.get_attr_bool("validate_shape").unwrap());
-        assert_eq!(false, op.get_attr_bool("use_locking").unwrap());
+        assert!(op.get_attr_bool("validate_shape").unwrap());
+        assert!(!op.get_attr_bool("use_locking").unwrap());
 
         let op = {
             let variable_op = {
