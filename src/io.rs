@@ -12,7 +12,7 @@ use std::{
 };
 
 fn mask_crc(crc: u32) -> u32 {
-    ((crc >> 15) | (crc << 17)).wrapping_add(0xa282_ead8u32)
+    crc.rotate_right(15).wrapping_add(0xa282_ead8u32)
 }
 
 const CASTAGNOLI: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
