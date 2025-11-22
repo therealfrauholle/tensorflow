@@ -389,11 +389,9 @@ impl<'a> Op<'a> {
 
         // If the 'num_retvals' was updated, we treat that as an error. See comment above.
         if num_retvals != N as i32 {
-            for i in 0..num_retvals as usize {
-                unsafe {
-                    tf::TFE_DeleteTensorHandle(retvals[i]);
-                }
-            }
+            retvals
+                .into_iter()
+                .for_each(|retval| unsafe { tf::TFE_DeleteTensorHandle(*retval) });
             let status = Status::new_set_lossy(
                 Code::InvalidArgument,
                 &format!("Expected {} outputs, got {}", N, num_retvals),
