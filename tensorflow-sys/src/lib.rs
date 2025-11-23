@@ -8,7 +8,9 @@ mod eager;
 pub use eager::*;
 include!("c_api.rs");
 #[cfg(feature = "experimental")]
-include!("c_api_experimental.rs");
+mod c_api_experimental;
+#[cfg(feature = "experimental")]
+pub use c_api_experimental::*;
 
 pub use crate::TF_AttrType::*;
 pub use crate::TF_Code::*;
