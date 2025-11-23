@@ -53,10 +53,15 @@ fn main() {
         return;
     }
 
-    // Note that pkg_config will print cargo:rustc-link-lib and cargo:rustc-link-search as
-    // appropriate if the library is found.
-    if pkg_config::probe_library(LIBRARY).is_ok() {
-        log!("Returning early because {} was already found", LIBRARY);
+    if let Ok(library) = pkg_config::probe_library(LIBRARY) {
+        for library_directory in library.link_paths {
+            println!("cargo:rustc-link-search={}", library_directory.display());
+        }
+        if target_os() != "windows" {
+            // There is no tensorflow_framework.dll
+            println!("cargo:rustc-link-lib=dylib={}", FRAMEWORK_LIBRARY);
+        }
+        println!("cargo:rustc-link-lib=dylib={}", LIBRARY);
         return;
     }
 

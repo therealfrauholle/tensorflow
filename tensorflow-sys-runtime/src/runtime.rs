@@ -108,7 +108,7 @@ macro_rules! link {
                         "`libtensorflow` function not loaded: `",
                         stringify!($name)
                     ))
-                }).expect("an `libtensorflow` shared library is not loaded on this thread");
+                }).expect("A `libtensorflow` shared library is not loaded on this thread. Did you call `load()`?");
                 f($($pname), *)
             }
         )+
