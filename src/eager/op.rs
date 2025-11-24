@@ -16,9 +16,6 @@ use crate::{AnyTensor, Code, DataType, Result, Shape, Status};
 
 use tensorflow_sys as tf;
 
-#[cfg(test)]
-mod op_test_util;
-
 #[allow(
     non_snake_case,
     clippy::too_many_arguments,
@@ -421,9 +418,8 @@ impl<'a> Op<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eager::{Context, ContextOptions, TensorHandle};
+    use crate::eager::{Context, ContextOptions, TensorHandle, ToTensorHandle};
     use crate::Tensor;
-    use op_test_util::add as add_ut;
     use raw_ops::{add, concat_v2};
 
     #[cfg(feature = "ndarray")]
@@ -485,6 +481,26 @@ mod tests {
         let h_x = TensorHandle::new(&ctx, &x).unwrap();
         let h_y = h_x.copy_sharing_tensor().unwrap();
         let expected = Tensor::new(&[2, 2]).with_values(&[2i32, 4, 6, 8]).unwrap();
+
+        fn add_ut<'a, T0, T1>(
+            ctx: &'a crate::eager::Context,
+            x: &T0,
+            y: &T1,
+        ) -> Result<TensorHandle<'a>>
+        where
+            T0: ToTensorHandle<'a>,
+            T1: ToTensorHandle<'a>,
+        {
+            let op_name = "Add";
+            let mut op = Op::new(ctx, op_name)?;
+
+            // Required input arguments
+            op.add_input(&x.to_handle(ctx)?)?;
+            op.add_input(&y.to_handle(ctx)?)?;
+
+            let [h] = op.execute::<1>(ctx)?;
+            Ok(h)
+        }
 
         // tensor and tensor
         let h_z = add_ut(&ctx, &x, &x).unwrap();
