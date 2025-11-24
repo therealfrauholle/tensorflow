@@ -160,18 +160,30 @@ impl<'a> Op<'a> {
     /// Sets the value of an attribute which holds a list of strings.
     fn set_attr_string_list<S: AsRef<str>>(&mut self, attr_name: &str, values: &[S]) -> Result<()> {
         let c_attr_name = CString::new(attr_name)?;
-        let bytes: Vec<&[u8]> = values.iter().map(|x| x.as_ref().as_bytes()).collect();
-        let ptrs: Vec<*const c_void> = bytes.iter().map(|x| x.as_ptr() as *const c_void).collect();
-        let lens: Vec<size_t> = bytes.iter().map(|x| x.len() as size_t).collect();
+        let (ptrs, lens): (Vec<*const c_void>, Vec<size_t>) = values
+            .iter()
+            .map(|entry| {
+                (
+                    entry.as_ref().as_ptr() as *const std_c_void,
+                    entry.as_ref().len() as size_t,
+                )
+            })
+            .unzip();
+
         unsafe {
             tf::TFE_OpSetAttrStringList(
                 self.inner,
                 c_attr_name.as_ptr(),
-                ptrs.as_ptr() as *const *const std_c_void,
+                ptrs.as_ptr(),
                 lens.as_ptr(),
                 ptrs.len() as c_int,
             );
         }
+
+        // Make sure the data referenced outlives the function call
+        drop(ptrs);
+        drop(lens);
+
         Ok(())
     }
 
@@ -390,7 +402,7 @@ impl<'a> Op<'a> {
         // If the 'num_retvals' was updated, we treat that as an error. See comment above.
         if num_retvals != N as i32 {
             retvals
-                .into_iter()
+                .iter()
                 .for_each(|retval| unsafe { tf::TFE_DeleteTensorHandle(*retval) });
             let status = Status::new_set_lossy(
                 Code::InvalidArgument,
