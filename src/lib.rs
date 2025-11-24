@@ -2405,19 +2405,18 @@ mod tests {
 
     #[test]
     fn test_bfloat16() {
-        let data = [-1.0f32, 0.0, 1.0, 2.5];
-        for i in 0..data.len() {
-            let x = data[i];
-            let bfx = BFloat16::from(x);
-            assert_eq!(<BFloat16 as Into<f32>>::into(bfx), x);
-            assert_eq!(bfx.partial_cmp(&bfx), Some(Ordering::Equal));
-            assert!(bfx.eq(&bfx));
-            for j in 0..i {
-                let y = data[j];
-                let bfy = BFloat16::from(y);
-                assert_eq!(bfx.partial_cmp(&bfy), Some(Ordering::Greater));
-                assert_eq!(bfy.partial_cmp(&bfx), Some(Ordering::Less));
-                assert!(!bfx.eq(&bfy));
+        let sorted = [-1.0f32, 0.0, 1.0, 2.5];
+        for greater_index in 0..sorted.len() {
+            let greater = sorted[greater_index];
+            let bf_greater = BFloat16::from(greater);
+            assert_eq!(<BFloat16 as Into<f32>>::into(bf_greater), greater);
+            assert_eq!(bf_greater.partial_cmp(&bf_greater), Some(Ordering::Equal));
+            assert!(bf_greater.eq(&bf_greater));
+            for lesser in sorted[..greater_index].iter() {
+                let bf_lesser = BFloat16::from(*lesser);
+                assert_eq!(bf_greater.partial_cmp(&bf_lesser), Some(Ordering::Greater));
+                assert_eq!(bf_lesser.partial_cmp(&bf_greater), Some(Ordering::Less));
+                assert!(!bf_greater.eq(&bf_lesser));
             }
         }
         assert_eq!(<BFloat16 as Into<f32>>::into(BFloat16::default()), 0.0f32);
