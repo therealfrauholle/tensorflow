@@ -7,7 +7,7 @@ use libc::c_void;
 use libc::size_t;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::mem::{self, ManuallyDrop};
+use std::mem::ManuallyDrop;
 use std::os::raw::c_void as std_c_void;
 use std::ptr;
 
@@ -365,7 +365,7 @@ impl<'a> Op<'a> {
     /// For sync execution, if any of the inputs to `op` are not ready, this call
     /// will block till they become ready and then return when the kernel execution
     /// is done.
-    fn execute<const N: usize>(self, ctx: &'a Context) -> Result<[TensorHandle; N]> {
+    fn execute<const N: usize>(self, ctx: &'a Context) -> Result<[TensorHandle<'a>; N]> {
         let status = Status::new();
 
         let mut num_retvals = N as i32;
@@ -399,23 +399,8 @@ impl<'a> Op<'a> {
             return Err(status);
         }
 
-        let mut handles_uninit: [mem::MaybeUninit<TensorHandle>; N] =
-            unsafe { mem::MaybeUninit::uninit().assume_init() };
-
-        for i in 0..N {
-            let t = unsafe { TensorHandle::from_tensor_handle(ctx, retvals[i]) };
-            handles_uninit[i].write(t);
-        }
-
-        // Transmute uninitialized handles to initialized handles. Ideally, we would use
-        // `mem::transmute` here, but it is not stable yet for generic sized arrays.
-        // ref : https://github.com/rust-lang/rust/issues/61956
-        //
-        // Following is a workaround for this issue:
-        // Using &mut as an assertion of unique "ownership"
-        let ptr = &mut handles_uninit as *mut _ as *mut [TensorHandle; N];
-        let handles: [TensorHandle; N] = unsafe { ptr.read() };
-        mem::forget(handles_uninit);
+        let handles: [TensorHandle; N] =
+            std::array::from_fn(|i| unsafe { TensorHandle::from_tensor_handle(ctx, retvals[i]) });
 
         Ok(handles)
     }
