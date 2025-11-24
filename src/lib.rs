@@ -2367,7 +2367,7 @@ mod tests {
     fn test_set_config() {
         let mut options = SessionOptions::new();
         // An empty array is a valid proto, since all fields are optional.
-        options.set_config(&vec![]).unwrap();
+        options.set_config(&[]).unwrap();
     }
 
     #[test]

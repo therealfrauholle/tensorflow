@@ -399,7 +399,7 @@ mod tests {
         use std::{io::Cursor, rc::Rc};
         let mut buf = Vec::new();
         let mut rc = Rc::new(&mut buf);
-        let records = vec!["foo", "barr", "baz"];
+        let records = ["foo", "barr", "baz"];
         {
             let mut writer = RecordWriter::new(Rc::get_mut(&mut rc).unwrap());
             for rec in records.iter() {
@@ -440,7 +440,7 @@ mod tests {
         use std::{io::Cursor, rc::Rc};
         let mut buf = Vec::new();
         let mut rc = Rc::new(&mut buf);
-        let records = vec!["foo", "barr", "baz"];
+        let records = ["foo", "barr", "baz"];
         {
             let mut writer = RecordWriter::new(Rc::get_mut(&mut rc).unwrap());
             for rec in records.iter() {
