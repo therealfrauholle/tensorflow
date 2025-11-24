@@ -2427,7 +2427,7 @@ mod tests {
     fn test_f16() {
         let data: Vec<f16> = vec![-1.0f32, 0.0, 1.0, 2.5]
             .into_iter()
-            .map(|x| f16::from_f32(x))
+            .map(f16::from_f32)
             .collect();
         let tensor = <Tensor<f16>>::new(&[2, 2]).with_values(&data).unwrap();
         assert_eq!(&tensor[..], &data[..]);
