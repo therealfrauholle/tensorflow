@@ -1651,7 +1651,7 @@ where
     fn from(value: Tensor<T>) -> Self {
         let dims: Vec<usize> = value.dims.iter().map(|x| *x as usize).collect();
         let dim = Dim(dims);
-        let data: Vec<T> = value.iter().map(|x| x.clone()).collect();
+        let data: Vec<T> = value.iter().cloned().collect();
         // We can safely unwrap this because we know that `data` will have the
         // correct number of elements to conform to `dim`.
         Array::from_shape_vec(dim, data).unwrap()
