@@ -300,7 +300,23 @@ mod tests {
             .iter()
             .zip(values.iter())
             .map(|(variable, value)| {
-                Tensor::new(variable.shape().all_dimensions()?.as_ref()).with_values(value)
+                Tensor::new(
+                    variable
+                        .shape()
+                        .0
+                        .as_ref()
+                        .ok_or(Status::new_set(Code::Internal, "Rank of shape not known")?)?
+                        .iter()
+                        .map(|o| {
+                            o.map(|i| i as u64).ok_or(Status::new_set(
+                                Code::Internal,
+                                "Dimensiom in shape not known",
+                            )?)
+                        })
+                        .collect::<Result<Vec<u64>, _>>()?
+                        .as_ref(),
+                )
+                .with_values(value)
             })
             .collect::<Result<_, _>>()?;
 

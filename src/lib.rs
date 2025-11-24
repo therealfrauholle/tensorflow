@@ -2120,23 +2120,6 @@ impl Shape {
             )
         })
     }
-
-    /// Dimensions of the shape.
-    ///
-    /// Will fail if the rank or any dimension is not known.
-    fn all_dimensions(&self) -> Result<Vec<u64>> {
-        self.0
-            .as_ref()
-            .ok_or(Status::new_set(Code::Internal, "Rank of shape not known")?)?
-            .iter()
-            .map(|o| {
-                o.map(|i| i as u64).ok_or(Status::new_set(
-                    Code::Internal,
-                    "Dimensiom in shape not known",
-                )?)
-            })
-            .collect()
-    }
 }
 
 impl From<Option<Vec<Option<i64>>>> for Shape {
@@ -2775,17 +2758,5 @@ mod tests {
             Shape::from(&[1, 2, 3, 4, 5, 6, 7, 8]),
             Shape::from(&[1, 2, 3, 4, 5, 6, 7, 8][..])
         );
-    }
-
-    #[test]
-    fn shape_expect_dimensions() {
-        assert_eq!(
-            &Shape::from(&[1, 2, 3]).all_dimensions().unwrap(),
-            &[1, 2, 3]
-        );
-        assert!(Shape::new(None).all_dimensions().is_err());
-        assert!(Shape::new(Some(vec![Some(1), None]))
-            .all_dimensions()
-            .is_err());
     }
 }
