@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::missing_safety_doc)]
 #![allow(deref_nullptr)] // FIXME old bindgen code has undefined behaviour in tests, see https://github.com/rust-lang/rust-bindgen/pull/2055
 include!("c_api.rs");
 include!("types.rs");
