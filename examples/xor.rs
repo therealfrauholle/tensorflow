@@ -207,7 +207,7 @@ fn eval<P: AsRef<Path>>(save_dir: P) -> Result<(), Box<dyn Error>> {
     let mut graph = Graph::new();
     let bundle = SavedModelBundle::load(
         &SessionOptions::new(),
-        &["serve", "train"],
+        ["serve", "train"],
         &mut graph,
         save_dir,
     )?;
