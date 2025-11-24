@@ -13,7 +13,7 @@ struct SaveRestoreOps {
 /// The CheckpointMaker lazily modifies the graph creating the nodes needed for saving/restoring.
 /// When one wants to save/restore from or into a session, one calls the save/restore  methods
 /// # Example
-/// ```
+/// ```no_run
 /// let mut scope = Scope::new_root_scope();
 /// // add operations to define the graph
 /// // ...
@@ -30,7 +30,6 @@ struct SaveRestoreOps {
 /// let new_session = Session::new(&SessionOptions::new(), &scope.graph())?;
 /// checkpoint_maker.restore(&new_session, "data/checkpoint")?;
 /// ```
-///
 #[derive(Debug)]
 pub struct CheckpointMaker {
     scope: Scope,
