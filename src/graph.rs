@@ -572,20 +572,6 @@ impl Graph {
     ///   `append_hash_to_fn_name` is false, `fn_name` must be distinct from
     ///   other function and operation names (at least those registered in
     ///   graphs where this function will be used).
-    /// * `append_hash_to_fn_name` - If true, the actual name of the function
-    ///   will be `fn_name` appended with
-    ///   '_&lt;hash_of_this_function's_definition&gt;'. If false, the
-    ///   function's name will be `fn_name`.
-    /// * `opers` - Array of operations to become the body of the function or
-    ///   null.
-    ///   * If `None`, all the operations in the graph will become part of the
-    ///     function except operations referenced in `inputs`. These operations
-    ///     must have a single output (these operations are typically
-    ///     placeholders created for the sole purpose of representing an input.
-    ///     We can relax this constraint if there are compelling use cases).
-    ///   * If `Some`, all operations in it will become part of the function. In
-    ///     particular, no automatic skipping of dummy input operations is
-    ///     performed.
     /// * `inputs` - array of `Output`s that specify the inputs to the function.
     ///   The names used for function inputs are normalized names of the
     ///   operations (usually placeholders) pointed to by `inputs`. These
@@ -595,13 +581,6 @@ impl Graph {
     ///   argument names. `inputs` cannot contain the same tensor twice.
     /// * `outputs` - array of `Output`s that specify the outputs of the
     ///   function. `outputs` can contain the same tensor more than once.
-    /// * `output_names` - The names of the function's outputs. `output_names`
-    ///   array must either have the same length as `outputs` or be None. In the
-    ///   former case, the names should match the regular expression for ArgDef
-    ///   names - "[a-z][a-z0-9_]*". In the latter case, names for outputs will
-    ///   be generated automatically.
-    /// * `opts` - various options for the function, e.g. XLA's inlining control.
-    /// * `description` - optional human-readable description of this function.
     ///
     /// Note that when the same `Output` is listed as both an input and an
     /// output, the corresponding function's output will equal to this input,
@@ -628,16 +607,29 @@ impl Graph {
     /// # Returns
     ///
     ///  A newly created `Function` instance.
-    pub fn to_function<S: AsRef<str>>(
+    pub fn to_function<'a>(
+        &'a self,
+        fn_name: &'a str,
+        inputs: &'a [Output],
+        outputs: &'a [Output],
+        options: &'a FunctionOptions,
+    ) -> FunctionBuilder<'a> {
+        FunctionBuilder::new(self, fn_name, inputs, outputs, options)
+    }
+
+    fn inner_to_function(
         &self,
-        fn_name: &str,
-        append_hash_to_fn_name: bool,
-        opers: Option<&[&Operation]>,
-        inputs: &[Output],
-        outputs: &[Output],
-        output_names: Option<&[S]>,
-        opts: &FunctionOptions,
-        description: Option<&str>,
+        FunctionBuilder {
+            graph: _,
+            fn_name,
+            append_hash_to_fn_name,
+            opers,
+            inputs,
+            outputs,
+            output_names,
+            opts,
+            description,
+        }: FunctionBuilder,
     ) -> Result<Function> {
         let fn_name_cstr = CString::new(fn_name)?;
         let num_opers: c_int = if let Some(ops) = &opers {
@@ -645,39 +637,41 @@ impl Graph {
         } else {
             -1
         };
+
         #[allow(trivial_casts)]
         let c_opers: Option<Vec<_>> =
             opers.map(|s| s.iter().map(|op| op.inner as *const _).collect());
-        let c_opers_ptr: *const *const tf::TF_Operation = if let Some(ref ops) = &c_opers {
-            ops.as_ptr()
-        } else {
-            ptr::null()
-        };
+        let c_opers_ptr: *const *const tf::TF_Operation = c_opers
+            .as_ref()
+            .map(|opers| opers.as_ptr())
+            .unwrap_or_else(ptr::null);
+
         let c_inputs: Vec<_> = inputs.iter().map(|x| x.to_c()).collect();
         let c_outputs: Vec<_> = outputs.iter().map(|x| x.to_c()).collect();
-        let output_names_cstrs: Option<::std::result::Result<Vec<CString>, NulError>> =
-            output_names
-                .map(|slice: &[S]| slice.iter().map(|s: &S| CString::new(s.as_ref())).collect());
-        let output_names_cstrs: Option<Vec<CString>> = match output_names_cstrs {
-            None => None,
-            Some(r) => Some(r?),
-        };
+
+        let output_names_cstrs: Option<Vec<CString>> = output_names
+            .map(|output_names: &[&str]| {
+                output_names
+                    .iter()
+                    .cloned()
+                    .map(CString::new)
+                    .collect::<::std::result::Result<Vec<CString>, NulError>>()
+            })
+            .transpose()?;
         let output_names_ptrs: Option<Vec<*const c_char>> = output_names_cstrs
             .as_ref()
             .map(|slice| slice.iter().map(|s| s.as_ptr()).collect());
-        let output_names_ptrs_ptr = match &output_names_ptrs {
-            None => ptr::null(),
-            Some(ref v) => v.as_ptr(),
-        };
-        let description_cstr = match description {
-            None => None,
-            Some(d) => Some(CString::new(d)?),
-        };
-        let description_ptr: *const c_char = if let Some(ref cstr) = &description_cstr {
-            cstr.as_ptr()
-        } else {
-            ptr::null()
-        };
+        let output_names_ptrs_ptr = output_names_ptrs
+            .as_ref()
+            .map(|names| names.as_ptr())
+            .unwrap_or_else(ptr::null);
+
+        let description_cstr = description.map(CString::new).transpose()?;
+        let description_ptr: *const c_char = description_cstr
+            .as_ref()
+            .map(|cstr| cstr.as_ptr())
+            .unwrap_or_else(ptr::null);
+
         let status = Status::new();
         let f = unsafe {
             tf::TF_GraphToFunction(
@@ -696,6 +690,7 @@ impl Graph {
                 status.inner,
             )
         };
+
         status.into_result()?;
         Ok(Function { inner: f })
     }
@@ -2382,6 +2377,95 @@ impl Function {
     }
 }
 
+/// Builder pattern to build a function from a graph.
+///
+/// See [Graph::to_function].
+#[derive(Debug)]
+pub struct FunctionBuilder<'a> {
+    graph: &'a Graph,
+    fn_name: &'a str,
+    append_hash_to_fn_name: bool,
+    opers: Option<&'a [&'a Operation]>,
+    inputs: &'a [Output],
+    outputs: &'a [Output],
+    output_names: Option<&'a [&'a str]>,
+    opts: &'a FunctionOptions,
+    description: Option<&'a str>,
+}
+
+impl<'a> FunctionBuilder<'a> {
+    fn new(
+        graph: &'a Graph,
+        fn_name: &'a str,
+        inputs: &'a [Output],
+        outputs: &'a [Output],
+        options: &'a FunctionOptions,
+    ) -> Self {
+        FunctionBuilder {
+            fn_name,
+            append_hash_to_fn_name: false,
+            opers: None,
+            inputs,
+            outputs,
+            output_names: None,
+            opts: options,
+            description: None,
+            graph,
+        }
+    }
+
+    /// When set, the final name of the function  will be `fn_name` appended with
+    /// '_&lt;hash_of_this_function's_definition&gt;'.
+    pub fn append_hash(mut self, do_it: bool) -> Self {
+        self.append_hash_to_fn_name = do_it;
+        self
+    }
+
+    /// Names of the function's outputs. `output_names`.
+    ///
+    /// The names should match the regular expression for ArgDef names - "[a-z][a-z0-9_]*".
+    ///
+    /// By default names for outputs will be generated automatically.
+    ///
+    /// # Panics
+    /// The number of names must match the number of outputs.
+    pub fn output_names(mut self, names: &'a [&'a str]) -> Self {
+        assert_eq!(names.len(), self.outputs.len(), "one name for one output");
+        self.output_names = Some(names);
+        self
+    }
+
+    /// Operations to become part of the body of the function.
+    ///
+    /// In particular, no automatic skipping of dummy input operations will be performed.
+    ///
+    /// By default all the operations in the graph will become part of the function
+    /// except operations referenced in its inputs. These operations must have a
+    /// single output (these operations are typically  placeholder created for the
+    /// sole purpose of representing an input).
+    pub fn opers(mut self, opers: &'a [&'a Operation]) -> Self {
+        self.opers = Some(opers);
+        self
+    }
+
+    /// Options for the function.
+    pub fn options(mut self, opts: &'a FunctionOptions) -> Self {
+        self.opts = opts;
+        self
+    }
+
+    /// Human readable description for the function.
+    pub fn description(mut self, desc: &'a str) -> Self {
+        self.description = Some(desc);
+        self
+    }
+
+    /// Build the function.
+    pub fn finalize(self) -> Result<Function> {
+        self.graph.inner_to_function(self)
+    }
+}
+
 ////////////////////////
 
 #[cfg(test)]
@@ -2480,16 +2564,11 @@ mod tests {
         let description = "Multiplies by 2";
         let opts = FunctionOptions::new();
         let f = g
-            .to_function(
-                "times_two",
-                false,
-                Some(&opers),
-                &inputs,
-                &outputs,
-                Some(&output_names),
-                &opts,
-                Some(description),
-            )
+            .to_function("times_two", &inputs, &outputs, &opts)
+            .opers(&opers)
+            .output_names(&output_names)
+            .description(description)
+            .finalize()
             .unwrap();
         assert_eq!("times_two", f.get_name().unwrap());
         let mut g2 = Graph::new();
