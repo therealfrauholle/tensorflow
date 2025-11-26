@@ -5,16 +5,16 @@ use std::error::Error;
 use std::path::Path;
 use std::result::Result;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let args: Vec<String> = env::args().collect();
     let tensorflow_folder = &args[1];
     let output_folder = Path::new(&args[2]);
     protoc_rust::Codegen::new()
         .out_dir(
             output_folder
-                .join("src/protos")
+                .join("tensorflow-proto/src/messages")
                 .to_str()
-                .ok_or("Unable to format output path for main crate")?,
+                .expect("Unable to format output path for main crate"),
         )
         .inputs(
             [
@@ -26,13 +26,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             .collect::<Vec<_>>(),
         )
         .include(Path::new(tensorflow_folder).join("third_party/xla/third_party/tsl"))
-        .run()?;
+        .run()
+        .unwrap();
     protoc_rust::Codegen::new()
         .out_dir(
             output_folder
-                .join("src/protos")
+                .join("tensorflow-proto/src/messages")
                 .to_str()
-                .ok_or("Unable to format output path for main crate")?,
+                .expect("Unable to format output path for main crate"),
         )
         .inputs(
             [
@@ -71,13 +72,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .include(tensorflow_folder)
         .include(Path::new(tensorflow_folder).join("third_party/xla/third_party/tsl"))
-        .run()?;
+        .run()
+        .unwrap();
     protoc_rust::Codegen::new()
         .out_dir(
             output_folder
-                .join("tensorflow-op-codegen/src/protos")
+                .join("tensorflow-proto/src/opdef")
                 .to_str()
-                .ok_or("Unable to format output path for ops crate")?,
+                .expect("Unable to format output path for ops crate"),
         )
         .inputs([
             &format!(
@@ -110,6 +112,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         ])
         .include(tensorflow_folder)
-        .run()?;
-    Ok(())
+        .run()
+        .unwrap();
 }

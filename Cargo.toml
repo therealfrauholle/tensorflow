@@ -33,6 +33,7 @@ protobuf = "=2.27.1"
 # Enables conversions between ndarray::Array objects and tensorflow::Tensor
 ndarray = { version = "0.15.6", optional = true }
 rustversion = "1.0.9"
+tensorflow-proto = { path = "tensorflow-proto" }
 
 [dev-dependencies]
 rand = "0.8.5"
@@ -54,6 +55,7 @@ examples_system_alloc = ["tensorflow-sys/examples_system_alloc"]
 private-docs-rs = ["tensorflow-sys/private-docs-rs"] # DO NOT RELY ON THIS
 
 [workspace]
+members = ["tensorflow-proto","tensorflow-proto-codegen"]
 
 [[example]]
 name = "addition"

@@ -7,4 +7,3 @@ edition = "2018"
 [dependencies]
 protoc-rust = "2.27.1"
 
-[workspace]

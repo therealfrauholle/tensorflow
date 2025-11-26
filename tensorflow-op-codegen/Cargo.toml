@@ -7,4 +7,6 @@ edition = "2018"
 [dependencies]
 nom = "6.2.1"
 protobuf = "=2.27.1" # match with workspace version
+tensorflow-proto = { path = "../tensorflow-proto" }
 
+[build-dependencies]
