@@ -13827,6 +13827,7 @@ pub struct BatchFunction {
     low_priority_allowed_batch_sizes: ::std::option::Option<::std::vec::Vec<i64>>,
     low_priority_max_enqueued_batches: ::std::option::Option<i64>,
     mixed_priority_policy: ::std::option::Option<::std::string::String>,
+    batch_padding_policy: ::std::option::Option<::std::string::String>,
     Tin: ::std::option::Option<::std::vec::Vec<crate::DataType>>,
     Tcaptured: ::std::option::Option<::std::vec::Vec<crate::DataType>>,
     Tout: ::std::option::Option<::std::vec::Vec<crate::DataType>>,
@@ -13966,6 +13967,15 @@ impl BatchFunction {
         self
     }
 
+    /// Sets the `batch_padding_policy` attribute.
+    pub fn batch_padding_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.batch_padding_policy = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `Tin` attribute.
     pub fn Tin<ArgType: ::std::convert::Into<::std::vec::Vec<crate::DataType>>>(
         mut self,
@@ -14074,6 +14084,9 @@ impl BatchFunction {
             if let ::std::option::Option::Some(value) = &self.mixed_priority_policy {
                 nd.set_attr_string("mixed_priority_policy", value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.batch_padding_policy {
+                nd.set_attr_string("batch_padding_policy", value)?;
+            }
             if let ::std::option::Option::Some(value) = &self.Tin {
                 nd.set_attr_type_list("Tin", value)?;
             }
@@ -14141,6 +14154,9 @@ impl BatchFunction {
             }
             if let ::std::option::Option::Some(value) = &self.mixed_priority_policy {
                 builder.set_attr_string("mixed_priority_policy", value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.batch_padding_policy {
+                builder.set_attr_string("batch_padding_policy", value)?;
             }
             if let ::std::option::Option::Some(value) = &self.Tin {
                 builder.set_attr_type_list("Tin", value)?;
@@ -25618,8 +25634,8 @@ impl BoostedTreesUpdateEnsembleV2Inst {
     }
     /// Returns a Vector of thresholds for 'thresholds' Input of this BoostedTreesUpdateEnsembleV2 operation.
     pub fn thresholds(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (3 * self.op.get_attr_int("num_features")?
-            + self.op.get_attr_int("num_groups")?
+        let dynamic_offset = (self.op.get_attr_int("num_groups")?
+            + 3 * self.op.get_attr_int("num_features")?
             + 5) as i32;
         let mut Inputs = vec![];
         for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("num_features")? as i32 {
@@ -25632,8 +25648,8 @@ impl BoostedTreesUpdateEnsembleV2Inst {
     }
     /// Returns a Vector of left_node_contribs for 'left_node_contribs' Input of this BoostedTreesUpdateEnsembleV2 operation.
     pub fn left_node_contribs(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (4 * self.op.get_attr_int("num_features")?
-            + self.op.get_attr_int("num_groups")?
+        let dynamic_offset = (self.op.get_attr_int("num_groups")?
+            + 4 * self.op.get_attr_int("num_features")?
             + 6) as i32;
         let mut Inputs = vec![];
         for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("num_features")? as i32 {
@@ -25674,8 +25690,8 @@ impl BoostedTreesUpdateEnsembleV2Inst {
     }
     /// Returns the 'max_depth' Input of this 'BoostedTreesUpdateEnsembleV2' operation.
     pub fn max_depth(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (7 * self.op.get_attr_int("num_features")?
-            + self.op.get_attr_int("num_groups")?
+        let dynamic_offset = (self.op.get_attr_int("num_groups")?
+            + 7 * self.op.get_attr_int("num_features")?
             + 9) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -29025,6 +29041,107 @@ pub fn check_numerics_v2<O0: ::std::convert::Into<crate::Output>>(
     scope: &mut crate::Scope,
 ) -> crate::Result<crate::Operation> {
     CheckNumericsV2::new().build(tensor, scope)
+}
+
+/// Builder for the `CheckPinned` operation.
+#[derive(::std::fmt::Debug, ::std::default::Default)]
+pub struct CheckPinned {
+    T: ::std::option::Option<crate::DataType>,
+    control_inputs: ::std::vec::Vec<crate::Operation>,
+}
+/// An instance of 'CheckPinned' Operation with it's Outputs and Inputs exposed as methods.
+#[derive(Debug, Clone)]
+pub struct CheckPinnedInst {
+    /// An instance of a fully built CheckPinned Operation in a Tensorflow graph.
+    pub op: crate::Operation,
+}
+
+impl CheckPinned {
+    /// Creates a new `CheckPinned`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `T` attribute.
+    pub fn T<ArgType: ::std::convert::Into<crate::DataType>>(mut self, value: ArgType) -> Self {
+        self.T = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Adds a control input.
+    pub fn add_control_input(mut self, op: crate::Operation) -> Self {
+        self.control_inputs.push(op);
+        self
+    }
+
+    /// Builds the `CheckPinned` operation.
+    pub fn build<O0: ::std::convert::Into<crate::Output>>(
+        &self,
+        tensor: O0,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<crate::Operation> {
+        self.build_impl(tensor.into(), scope)
+    }
+    fn build_impl(
+        &self,
+        tensor: crate::Output,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<crate::Operation> {
+        scope.new_operation("CheckPinned", |nd| {
+            nd.add_input(tensor);
+            for op in &self.control_inputs {
+                nd.add_control_input(op);
+            }
+            if let ::std::option::Option::Some(value) = &self.T {
+                nd.set_attr_type("T", *value)?;
+            }
+            ::std::result::Result::Ok(())
+        })
+    }
+
+    /// Builds a new instance of 'CheckPinned' Operation with it's Outputs and Inputs exposed as methods.
+    pub fn build_instance(
+        &self,
+        tensor: crate::Output,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<CheckPinnedInst> {
+        let op = scope.new_operation("CheckPinned", |builder| {
+            builder.add_input(tensor);
+            if let ::std::option::Option::Some(value) = &self.T {
+                builder.set_attr_type("T", *value)?;
+            }
+            ::std::result::Result::Ok(())
+        })?;
+        Ok(CheckPinnedInst { op })
+    }
+}
+impl CheckPinnedInst {
+    /// Returns the 'output' Output of this 'CheckPinned' operation.
+    pub fn output(&self) -> crate::Output {
+        crate::Output {
+            operation: self.op.clone(),
+            index: 0,
+        }
+    }
+    /// Returns the 'tensor' Input of this 'CheckPinned' operation.
+    pub fn tensor(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 0,
+        }
+    }
+}
+impl From<CheckPinnedInst> for crate::Operation {
+    fn from(inst: CheckPinnedInst) -> crate::Operation {
+        inst.op
+    }
+}
+/// Shorthand for `CheckPinned::new().build(tensor, scope)`.
+pub fn check_pinned<O0: ::std::convert::Into<crate::Output>>(
+    tensor: O0,
+    scope: &mut crate::Scope,
+) -> crate::Result<crate::Operation> {
+    CheckPinned::new().build(tensor, scope)
 }
 
 /// Builder for the `Cholesky` operation.
@@ -64415,6 +64532,7 @@ pub struct ExperimentalMapDataset {
     output_shapes: ::std::option::Option<::std::vec::Vec<crate::Shape>>,
     use_inter_op_parallelism: ::std::option::Option<bool>,
     preserve_cardinality: ::std::option::Option<bool>,
+    force_synchronous: ::std::option::Option<bool>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ExperimentalMapDataset' Operation with it's Outputs and Inputs exposed as methods.
@@ -64484,6 +64602,15 @@ impl ExperimentalMapDataset {
         self
     }
 
+    /// Sets the `force_synchronous` attribute.
+    pub fn force_synchronous<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.force_synchronous = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Adds a control input.
     pub fn add_control_input(mut self, op: crate::Operation) -> Self {
         self.control_inputs.push(op);
@@ -64532,6 +64659,9 @@ impl ExperimentalMapDataset {
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 nd.set_attr_bool("preserve_cardinality", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.force_synchronous {
+                nd.set_attr_bool("force_synchronous", *value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -64563,6 +64693,9 @@ impl ExperimentalMapDataset {
             }
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 builder.set_attr_bool("preserve_cardinality", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.force_synchronous {
+                builder.set_attr_bool("force_synchronous", *value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -99000,6 +99133,7 @@ pub struct MapDataset {
     output_shapes: ::std::option::Option<::std::vec::Vec<crate::Shape>>,
     use_inter_op_parallelism: ::std::option::Option<bool>,
     preserve_cardinality: ::std::option::Option<bool>,
+    force_synchronous: ::std::option::Option<bool>,
     metadata: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
@@ -99070,6 +99204,15 @@ impl MapDataset {
         self
     }
 
+    /// Sets the `force_synchronous` attribute.
+    pub fn force_synchronous<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.force_synchronous = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `metadata` attribute.
     pub fn metadata<ArgType: ::std::convert::Into<::std::string::String>>(
         mut self,
@@ -99127,6 +99270,9 @@ impl MapDataset {
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 nd.set_attr_bool("preserve_cardinality", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.force_synchronous {
+                nd.set_attr_bool("force_synchronous", *value)?;
+            }
             if let ::std::option::Option::Some(value) = &self.metadata {
                 nd.set_attr_string("metadata", value)?;
             }
@@ -99161,6 +99307,9 @@ impl MapDataset {
             }
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 builder.set_attr_bool("preserve_cardinality", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.force_synchronous {
+                builder.set_attr_bool("force_synchronous", *value)?;
             }
             if let ::std::option::Option::Some(value) = &self.metadata {
                 builder.set_attr_string("metadata", value)?;
@@ -119118,6 +119267,7 @@ pub struct ParallelMapDatasetV2 {
     use_inter_op_parallelism: ::std::option::Option<bool>,
     deterministic: ::std::option::Option<::std::string::String>,
     preserve_cardinality: ::std::option::Option<bool>,
+    use_unbounded_threadpool: ::std::option::Option<bool>,
     metadata: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
@@ -119197,6 +119347,15 @@ impl ParallelMapDatasetV2 {
         self
     }
 
+    /// Sets the `use_unbounded_threadpool` attribute.
+    pub fn use_unbounded_threadpool<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.use_unbounded_threadpool = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `metadata` attribute.
     pub fn metadata<ArgType: ::std::convert::Into<::std::string::String>>(
         mut self,
@@ -119266,6 +119425,9 @@ impl ParallelMapDatasetV2 {
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 nd.set_attr_bool("preserve_cardinality", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.use_unbounded_threadpool {
+                nd.set_attr_bool("use_unbounded_threadpool", *value)?;
+            }
             if let ::std::option::Option::Some(value) = &self.metadata {
                 nd.set_attr_string("metadata", value)?;
             }
@@ -119305,6 +119467,9 @@ impl ParallelMapDatasetV2 {
             }
             if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
                 builder.set_attr_bool("preserve_cardinality", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.use_unbounded_threadpool {
+                builder.set_attr_bool("use_unbounded_threadpool", *value)?;
             }
             if let ::std::option::Option::Some(value) = &self.metadata {
                 builder.set_attr_string("metadata", value)?;
@@ -121678,8 +121843,8 @@ impl ParseSequenceExampleV2Inst {
     }
     /// Returns the 'feature_list_sparse_values' Output of this 'ParseSequenceExampleV2' operation.
     pub fn feature_list_sparse_values(&self) -> crate::Result<crate::Output> {
-        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
-            + self.op.get_attr_int("Nfeature_list_sparse")?
+        let dynamic_offset = (self.op.get_attr_int("Nfeature_list_sparse")?
+            + 2 * self.op.get_attr_int("Ncontext_sparse")?
             + 7) as i32;
         Ok(crate::Output {
             operation: self.op.clone(),
@@ -121688,8 +121853,8 @@ impl ParseSequenceExampleV2Inst {
     }
     /// Returns a Vector of feature_list_sparse_shapes for 'feature_list_sparse_shapes' Output of this ParseSequenceExampleV2 operation.
     pub fn feature_list_sparse_shapes(&self) -> crate::Result<Vec<crate::Output>> {
-        let dynamic_offset = (self.op.get_attr_int("Nfeature_list_sparse")?
-            + 2 * self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
+            + self.op.get_attr_int("Nfeature_list_sparse")?
             + 8) as i32;
         let mut Outputs = vec![];
         for i in
@@ -121704,8 +121869,8 @@ impl ParseSequenceExampleV2Inst {
     }
     /// Returns the 'feature_list_dense_values' Output of this 'ParseSequenceExampleV2' operation.
     pub fn feature_list_dense_values(&self) -> crate::Result<crate::Output> {
-        let dynamic_offset = (2 * self.op.get_attr_int("Nfeature_list_sparse")?
-            + 2 * self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
+            + 2 * self.op.get_attr_int("Nfeature_list_sparse")?
             + 9) as i32;
         Ok(crate::Output {
             operation: self.op.clone(),
@@ -121714,8 +121879,8 @@ impl ParseSequenceExampleV2Inst {
     }
     /// Returns a Vector of feature_list_dense_lengths for 'feature_list_dense_lengths' Output of this ParseSequenceExampleV2 operation.
     pub fn feature_list_dense_lengths(&self) -> crate::Result<Vec<crate::Output>> {
-        let dynamic_offset = (2 * self.op.get_attr_int("Nfeature_list_sparse")?
-            + 2 * self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
+            + 2 * self.op.get_attr_int("Nfeature_list_sparse")?
             + 10) as i32;
         let mut Outputs = vec![];
         for i in
@@ -121730,8 +121895,8 @@ impl ParseSequenceExampleV2Inst {
     }
     /// Returns the 'feature_list_ragged_values' Output of this 'ParseSequenceExampleV2' operation.
     pub fn feature_list_ragged_values(&self) -> crate::Result<crate::Output> {
-        let dynamic_offset = (2 * self.op.get_attr_int("Nfeature_list_sparse")?
-            + 2 * self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
+            + 2 * self.op.get_attr_int("Nfeature_list_sparse")?
             + self.op.get_attr_int("Nfeature_list_dense")?
             + 11) as i32;
         Ok(crate::Output {
@@ -122446,8 +122611,8 @@ impl ParseSingleSequenceExampleInst {
     }
     /// Returns a Vector of feature_list_sparse_shapes for 'feature_list_sparse_shapes' Output of this ParseSingleSequenceExample operation.
     pub fn feature_list_sparse_shapes(&self) -> crate::Result<Vec<crate::Output>> {
-        let dynamic_offset = (self.op.get_attr_int("Nfeature_list_sparse")?
-            + 2 * self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
+            + self.op.get_attr_int("Nfeature_list_sparse")?
             + 6) as i32;
         let mut Outputs = vec![];
         for i in
@@ -122462,8 +122627,8 @@ impl ParseSingleSequenceExampleInst {
     }
     /// Returns the 'feature_list_dense_values' Output of this 'ParseSingleSequenceExample' operation.
     pub fn feature_list_dense_values(&self) -> crate::Result<crate::Output> {
-        let dynamic_offset = (2 * self.op.get_attr_int("Ncontext_sparse")?
-            + 2 * self.op.get_attr_int("Nfeature_list_sparse")?
+        let dynamic_offset = (2 * self.op.get_attr_int("Nfeature_list_sparse")?
+            + 2 * self.op.get_attr_int("Ncontext_sparse")?
             + 7) as i32;
         Ok(crate::Output {
             operation: self.op.clone(),
@@ -122509,8 +122674,8 @@ impl ParseSingleSequenceExampleInst {
     }
     /// Returns a Vector of feature_list_sparse_keys for 'feature_list_sparse_keys' Input of this ParseSingleSequenceExample operation.
     pub fn feature_list_sparse_keys(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (self.op.get_attr_int("Ncontext_dense")?
-            + self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (self.op.get_attr_int("Ncontext_sparse")?
+            + self.op.get_attr_int("Ncontext_dense")?
             + 4) as i32;
         let mut Inputs = vec![];
         for i in
@@ -122525,9 +122690,9 @@ impl ParseSingleSequenceExampleInst {
     }
     /// Returns a Vector of feature_list_dense_keys for 'feature_list_dense_keys' Input of this ParseSingleSequenceExample operation.
     pub fn feature_list_dense_keys(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (self.op.get_attr_int("Ncontext_sparse")?
+        let dynamic_offset = (self.op.get_attr_int("Nfeature_list_sparse")?
             + self.op.get_attr_int("Ncontext_dense")?
-            + self.op.get_attr_int("Nfeature_list_sparse")?
+            + self.op.get_attr_int("Ncontext_sparse")?
             + 5) as i32;
         let mut Inputs = vec![];
         for i in
@@ -122554,10 +122719,10 @@ impl ParseSingleSequenceExampleInst {
     }
     /// Returns the 'debug_name' Input of this 'ParseSingleSequenceExample' operation.
     pub fn debug_name(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("Nfeature_list_dense")?
-            + self.op.get_attr_int("Ncontext_sparse")?
-            + self.op.get_attr_int("Ncontext_dense")?
+        let dynamic_offset = (self.op.get_attr_int("Ncontext_sparse")?
+            + self.op.get_attr_int("Nfeature_list_dense")?
             + self.op.get_attr_int("Nfeature_list_sparse")?
+            + self.op.get_attr_int("Ncontext_dense")?
             + 7) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -157567,6 +157732,7 @@ pub struct ResourceScatterNdAdd {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ResourceScatterNdAdd' Operation with it's Outputs and Inputs exposed as methods.
@@ -157600,6 +157766,15 @@ impl ResourceScatterNdAdd {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -157646,6 +157821,9 @@ impl ResourceScatterNdAdd {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -157670,6 +157848,9 @@ impl ResourceScatterNdAdd {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -157724,6 +157905,7 @@ pub struct ResourceScatterNdMax {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ResourceScatterNdMax' Operation with it's Outputs and Inputs exposed as methods.
@@ -157757,6 +157939,15 @@ impl ResourceScatterNdMax {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -157803,6 +157994,9 @@ impl ResourceScatterNdMax {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -157827,6 +158021,9 @@ impl ResourceScatterNdMax {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -157881,6 +158078,7 @@ pub struct ResourceScatterNdMin {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ResourceScatterNdMin' Operation with it's Outputs and Inputs exposed as methods.
@@ -157914,6 +158112,15 @@ impl ResourceScatterNdMin {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -157960,6 +158167,9 @@ impl ResourceScatterNdMin {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -157984,6 +158194,9 @@ impl ResourceScatterNdMin {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -158038,6 +158251,7 @@ pub struct ResourceScatterNdSub {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ResourceScatterNdSub' Operation with it's Outputs and Inputs exposed as methods.
@@ -158071,6 +158285,15 @@ impl ResourceScatterNdSub {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -158117,6 +158340,9 @@ impl ResourceScatterNdSub {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -158141,6 +158367,9 @@ impl ResourceScatterNdSub {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -158195,6 +158424,7 @@ pub struct ResourceScatterNdUpdate {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ResourceScatterNdUpdate' Operation with it's Outputs and Inputs exposed as methods.
@@ -158228,6 +158458,15 @@ impl ResourceScatterNdUpdate {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -158274,6 +158513,9 @@ impl ResourceScatterNdUpdate {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -158298,6 +158540,9 @@ impl ResourceScatterNdUpdate {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175155,6 +175400,7 @@ pub fn scatter_mul<
 pub struct ScatterNd {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNd' Operation with it's Outputs and Inputs exposed as methods.
@@ -175182,6 +175428,15 @@ impl ScatterNd {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -175225,6 +175480,9 @@ impl ScatterNd {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -175246,6 +175504,9 @@ impl ScatterNd {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175307,6 +175568,7 @@ pub struct ScatterNdAdd {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdAdd' Operation with it's Outputs and Inputs exposed as methods.
@@ -175340,6 +175602,15 @@ impl ScatterNdAdd {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -175386,6 +175657,9 @@ impl ScatterNdAdd {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -175410,6 +175684,9 @@ impl ScatterNdAdd {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175471,6 +175748,7 @@ pub struct ScatterNdMax {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdMax' Operation with it's Outputs and Inputs exposed as methods.
@@ -175504,6 +175782,15 @@ impl ScatterNdMax {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -175550,6 +175837,9 @@ impl ScatterNdMax {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -175574,6 +175864,9 @@ impl ScatterNdMax {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175635,6 +175928,7 @@ pub struct ScatterNdMin {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdMin' Operation with it's Outputs and Inputs exposed as methods.
@@ -175668,6 +175962,15 @@ impl ScatterNdMin {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -175714,6 +176017,9 @@ impl ScatterNdMin {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -175738,6 +176044,9 @@ impl ScatterNdMin {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175798,6 +176107,7 @@ pub fn scatter_nd_min<
 pub struct ScatterNdNonAliasingAdd {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdNonAliasingAdd' Operation with it's Outputs and Inputs exposed as methods.
@@ -175825,6 +176135,15 @@ impl ScatterNdNonAliasingAdd {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -175868,6 +176187,9 @@ impl ScatterNdNonAliasingAdd {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -175889,6 +176211,9 @@ impl ScatterNdNonAliasingAdd {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -175950,6 +176275,7 @@ pub struct ScatterNdSub {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdSub' Operation with it's Outputs and Inputs exposed as methods.
@@ -175983,6 +176309,15 @@ impl ScatterNdSub {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -176029,6 +176364,9 @@ impl ScatterNdSub {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -176053,6 +176391,9 @@ impl ScatterNdSub {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -176114,6 +176455,7 @@ pub struct ScatterNdUpdate {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'ScatterNdUpdate' Operation with it's Outputs and Inputs exposed as methods.
@@ -176147,6 +176489,15 @@ impl ScatterNdUpdate {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -176193,6 +176544,9 @@ impl ScatterNdUpdate {
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 nd.set_attr_bool("use_locking", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -176217,6 +176571,9 @@ impl ScatterNdUpdate {
             }
             if let ::std::option::Option::Some(value) = &self.use_locking {
                 builder.set_attr_bool("use_locking", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -177023,8 +177380,8 @@ impl SdcaOptimizerInst {
     }
     /// Returns a Vector of dense_features for 'dense_features' Input of this SdcaOptimizer operation.
     pub fn dense_features(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (2 * self.op.get_attr_int("num_sparse_features")?
-            + self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 3) as i32;
         let mut Inputs = vec![];
         for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("num_dense_features")? as i32
@@ -177038,9 +177395,9 @@ impl SdcaOptimizerInst {
     }
     /// Returns the 'example_weights' Input of this 'SdcaOptimizer' operation.
     pub fn example_weights(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (2 * self.op.get_attr_int("num_sparse_features")?
+            + self.op.get_attr_int("num_sparse_features_with_values")?
             + self.op.get_attr_int("num_dense_features")?
-            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 4) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -177049,9 +177406,9 @@ impl SdcaOptimizerInst {
     }
     /// Returns the 'example_labels' Input of this 'SdcaOptimizer' operation.
     pub fn example_labels(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (2 * self.op.get_attr_int("num_sparse_features")?
+            + self.op.get_attr_int("num_sparse_features_with_values")?
             + self.op.get_attr_int("num_dense_features")?
-            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 5) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -177061,8 +177418,8 @@ impl SdcaOptimizerInst {
     /// Returns a Vector of sparse_indices for 'sparse_indices' Input of this SdcaOptimizer operation.
     pub fn sparse_indices(&self) -> crate::Result<Vec<crate::Input>> {
         let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
-            + 2 * self.op.get_attr_int("num_sparse_features")?
             + self.op.get_attr_int("num_sparse_features_with_values")?
+            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 6) as i32;
         let mut Inputs = vec![];
         for i in
@@ -177077,9 +177434,9 @@ impl SdcaOptimizerInst {
     }
     /// Returns a Vector of sparse_weights for 'sparse_weights' Input of this SdcaOptimizer operation.
     pub fn sparse_weights(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (3 * self.op.get_attr_int("num_sparse_features")?
             + self.op.get_attr_int("num_dense_features")?
-            + 3 * self.op.get_attr_int("num_sparse_features")?
+            + self.op.get_attr_int("num_sparse_features_with_values")?
             + 7) as i32;
         let mut Inputs = vec![];
         for i in
@@ -177500,8 +177857,8 @@ impl SdcaOptimizerV2Inst {
     }
     /// Returns a Vector of dense_features for 'dense_features' Input of this SdcaOptimizerV2 operation.
     pub fn dense_features(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (2 * self.op.get_attr_int("num_sparse_features")?
-            + self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 3) as i32;
         let mut Inputs = vec![];
         for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("num_dense_features")? as i32
@@ -177515,9 +177872,9 @@ impl SdcaOptimizerV2Inst {
     }
     /// Returns the 'example_weights' Input of this 'SdcaOptimizerV2' operation.
     pub fn example_weights(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("num_sparse_features_with_values")?
+        let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
+            + self.op.get_attr_int("num_sparse_features_with_values")?
             + 2 * self.op.get_attr_int("num_sparse_features")?
-            + self.op.get_attr_int("num_dense_features")?
             + 4) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -177526,9 +177883,9 @@ impl SdcaOptimizerV2Inst {
     }
     /// Returns the 'example_labels' Input of this 'SdcaOptimizerV2' operation.
     pub fn example_labels(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
-            + 2 * self.op.get_attr_int("num_sparse_features")?
+        let dynamic_offset = (2 * self.op.get_attr_int("num_sparse_features")?
             + self.op.get_attr_int("num_sparse_features_with_values")?
+            + self.op.get_attr_int("num_dense_features")?
             + 5) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -177538,8 +177895,8 @@ impl SdcaOptimizerV2Inst {
     /// Returns a Vector of sparse_indices for 'sparse_indices' Input of this SdcaOptimizerV2 operation.
     pub fn sparse_indices(&self) -> crate::Result<Vec<crate::Input>> {
         let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
-            + 2 * self.op.get_attr_int("num_sparse_features")?
             + self.op.get_attr_int("num_sparse_features_with_values")?
+            + 2 * self.op.get_attr_int("num_sparse_features")?
             + 6) as i32;
         let mut Inputs = vec![];
         for i in
@@ -177554,9 +177911,9 @@ impl SdcaOptimizerV2Inst {
     }
     /// Returns a Vector of sparse_weights for 'sparse_weights' Input of this SdcaOptimizerV2 operation.
     pub fn sparse_weights(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
+        let dynamic_offset = (3 * self.op.get_attr_int("num_sparse_features")?
             + self.op.get_attr_int("num_sparse_features_with_values")?
-            + 3 * self.op.get_attr_int("num_sparse_features")?
+            + self.op.get_attr_int("num_dense_features")?
             + 7) as i32;
         let mut Inputs = vec![];
         for i in
@@ -177571,9 +177928,9 @@ impl SdcaOptimizerV2Inst {
     }
     /// Returns a Vector of dense_weights for 'dense_weights' Input of this SdcaOptimizerV2 operation.
     pub fn dense_weights(&self) -> crate::Result<Vec<crate::Input>> {
-        let dynamic_offset = (4 * self.op.get_attr_int("num_sparse_features")?
+        let dynamic_offset = (self.op.get_attr_int("num_dense_features")?
             + self.op.get_attr_int("num_sparse_features_with_values")?
-            + self.op.get_attr_int("num_dense_features")?
+            + 4 * self.op.get_attr_int("num_sparse_features")?
             + 8) as i32;
         let mut Inputs = vec![];
         for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("num_dense_features")? as i32
@@ -177588,8 +177945,8 @@ impl SdcaOptimizerV2Inst {
     /// Returns the 'example_state_data' Input of this 'SdcaOptimizerV2' operation.
     pub fn example_state_data(&self) -> crate::Result<crate::Input> {
         let dynamic_offset = (4 * self.op.get_attr_int("num_sparse_features")?
-            + self.op.get_attr_int("num_sparse_features_with_values")?
             + 2 * self.op.get_attr_int("num_dense_features")?
+            + self.op.get_attr_int("num_sparse_features_with_values")?
             + 9) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -224430,6 +224787,7 @@ pub fn tensor_map_stack_keys<O0: ::std::convert::Into<crate::Output>>(
 pub struct TensorScatterAdd {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'TensorScatterAdd' Operation with it's Outputs and Inputs exposed as methods.
@@ -224457,6 +224815,15 @@ impl TensorScatterAdd {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -224500,6 +224867,9 @@ impl TensorScatterAdd {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -224521,6 +224891,9 @@ impl TensorScatterAdd {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -224581,6 +224954,7 @@ pub fn tensor_scatter_add<
 pub struct TensorScatterMax {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'TensorScatterMax' Operation with it's Outputs and Inputs exposed as methods.
@@ -224608,6 +224982,15 @@ impl TensorScatterMax {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -224651,6 +225034,9 @@ impl TensorScatterMax {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -224672,6 +225058,9 @@ impl TensorScatterMax {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -224732,6 +225121,7 @@ pub fn tensor_scatter_max<
 pub struct TensorScatterMin {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'TensorScatterMin' Operation with it's Outputs and Inputs exposed as methods.
@@ -224759,6 +225149,15 @@ impl TensorScatterMin {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -224802,6 +225201,9 @@ impl TensorScatterMin {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -224823,6 +225225,9 @@ impl TensorScatterMin {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -224883,6 +225288,7 @@ pub fn tensor_scatter_min<
 pub struct TensorScatterSub {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'TensorScatterSub' Operation with it's Outputs and Inputs exposed as methods.
@@ -224910,6 +225316,15 @@ impl TensorScatterSub {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -224953,6 +225368,9 @@ impl TensorScatterSub {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -224974,6 +225392,9 @@ impl TensorScatterSub {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -225034,6 +225455,7 @@ pub fn tensor_scatter_sub<
 pub struct TensorScatterUpdate {
     T: ::std::option::Option<crate::DataType>,
     Tindices: ::std::option::Option<crate::DataType>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     control_inputs: ::std::vec::Vec<crate::Operation>,
 }
 /// An instance of 'TensorScatterUpdate' Operation with it's Outputs and Inputs exposed as methods.
@@ -225061,6 +225483,15 @@ impl TensorScatterUpdate {
         value: ArgType,
     ) -> Self {
         self.Tindices = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -225104,6 +225535,9 @@ impl TensorScatterUpdate {
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 nd.set_attr_type("Tindices", *value)?;
             }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                nd.set_attr_string("bad_indices_policy", value)?;
+            }
             ::std::result::Result::Ok(())
         })
     }
@@ -225125,6 +225559,9 @@ impl TensorScatterUpdate {
             }
             if let ::std::option::Option::Some(value) = &self.Tindices {
                 builder.set_attr_type("Tindices", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+                builder.set_attr_string("bad_indices_policy", value)?;
             }
             ::std::result::Result::Ok(())
         })?;
@@ -239280,8 +239717,8 @@ impl XlaSendTPUEmbeddingGradientsInst {
     }
     /// Returns the 'deduplication_data' Input of this 'XlaSendTPUEmbeddingGradients' operation.
     pub fn deduplication_data(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("NumLearningRateTags")?
-            + self.op.get_attr_int("NumTables")?
+        let dynamic_offset = (self.op.get_attr_int("NumTables")?
+            + self.op.get_attr_int("NumLearningRateTags")?
             + 2) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -239503,8 +239940,8 @@ impl XlaSendTPUEmbeddingGradientsV2Inst {
     }
     /// Returns the 'deduplication_data' Input of this 'XlaSendTPUEmbeddingGradientsV2' operation.
     pub fn deduplication_data(&self) -> crate::Result<crate::Input> {
-        let dynamic_offset = (self.op.get_attr_int("NumTables")?
-            + self.op.get_attr_int("NumLearningRateTags")?
+        let dynamic_offset = (self.op.get_attr_int("NumLearningRateTags")?
+            + self.op.get_attr_int("NumTables")?
             + 2) as i32;
         Ok(crate::Input {
             operation: &self.op,
@@ -243230,6 +243667,291 @@ pub fn xla_sparse_dense_matmul_grad_with_adam_and_static_buffer_size<
         embedding_table,
         momenta,
         velocity,
+        num_minibatches_per_physical_sparse_core,
+        scope,
+    )
+}
+
+/// Builder for the `XlaSparseDenseMatmulGradWithCsrInput` operation.
+#[derive(::std::fmt::Debug, ::std::default::Default)]
+pub struct XlaSparseDenseMatmulGradWithCsrInput {
+    N: ::std::option::Option<i64>,
+    M: ::std::option::Option<i64>,
+    custom_computation: ::std::option::Option<::std::string::String>,
+    table_name: ::std::option::Option<::std::string::String>,
+    control_inputs: ::std::vec::Vec<crate::Operation>,
+}
+/// An instance of 'XlaSparseDenseMatmulGradWithCsrInput' Operation with it's Outputs and Inputs exposed as methods.
+#[derive(Debug, Clone)]
+pub struct XlaSparseDenseMatmulGradWithCsrInputInst {
+    /// An instance of a fully built XlaSparseDenseMatmulGradWithCsrInput Operation in a Tensorflow graph.
+    pub op: crate::Operation,
+}
+
+impl XlaSparseDenseMatmulGradWithCsrInput {
+    /// Creates a new `XlaSparseDenseMatmulGradWithCsrInput`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `N` attribute.
+    pub fn N<ArgType: ::std::convert::Into<i64>>(mut self, value: ArgType) -> Self {
+        self.N = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `M` attribute.
+    pub fn M<ArgType: ::std::convert::Into<i64>>(mut self, value: ArgType) -> Self {
+        self.M = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `custom_computation` attribute.
+    pub fn custom_computation<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.custom_computation = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `table_name` attribute.
+    pub fn table_name<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.table_name = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Adds a control input.
+    pub fn add_control_input(mut self, op: crate::Operation) -> Self {
+        self.control_inputs.push(op);
+        self
+    }
+
+    /// Builds the `XlaSparseDenseMatmulGradWithCsrInput` operation.
+    pub fn build<
+        O0: ::std::convert::Into<crate::Output>,
+        O1: ::std::convert::Into<crate::Output>,
+        O2: ::std::convert::Into<crate::Output>,
+        O3: ::std::convert::Into<crate::Output>,
+        O4: ::std::convert::Into<crate::Output>,
+        O5: ::std::convert::Into<crate::Output>,
+        O6: ::std::convert::Into<crate::Output>,
+        O7: ::std::convert::Into<crate::Output>,
+    >(
+        &self,
+        row_pointers: O0,
+        sorted_sample_ids: O1,
+        sorted_token_ids: O2,
+        sorted_gains: O3,
+        activation_gradients: O4,
+        tables: O5,
+        hyperparameters: O6,
+        num_minibatches_per_physical_sparse_core: O7,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<crate::Operation> {
+        self.build_impl(
+            row_pointers.into(),
+            sorted_sample_ids.into(),
+            sorted_token_ids.into(),
+            sorted_gains.into(),
+            activation_gradients.into(),
+            tables.into(),
+            hyperparameters.into(),
+            num_minibatches_per_physical_sparse_core.into(),
+            scope,
+        )
+    }
+    fn build_impl(
+        &self,
+        row_pointers: crate::Output,
+        sorted_sample_ids: crate::Output,
+        sorted_token_ids: crate::Output,
+        sorted_gains: crate::Output,
+        activation_gradients: crate::Output,
+        tables: crate::Output,
+        hyperparameters: crate::Output,
+        num_minibatches_per_physical_sparse_core: crate::Output,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<crate::Operation> {
+        scope.new_operation("XlaSparseDenseMatmulGradWithCsrInput", |nd| {
+            nd.add_input(row_pointers);
+            nd.add_input(sorted_sample_ids);
+            nd.add_input(sorted_token_ids);
+            nd.add_input(sorted_gains);
+            nd.add_input(activation_gradients);
+            nd.add_input(tables);
+            nd.add_input(hyperparameters);
+            nd.add_input(num_minibatches_per_physical_sparse_core);
+            for op in &self.control_inputs {
+                nd.add_control_input(op);
+            }
+            if let ::std::option::Option::Some(value) = &self.N {
+                nd.set_attr_int("N", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.M {
+                nd.set_attr_int("M", *value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.custom_computation {
+                nd.set_attr_string("custom_computation", value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.table_name {
+                nd.set_attr_string("table_name", value)?;
+            }
+            ::std::result::Result::Ok(())
+        })
+    }
+
+    /// Builds a new instance of 'XlaSparseDenseMatmulGradWithCsrInput' Operation with it's Outputs and Inputs exposed as methods.
+    pub fn build_instance(
+        &self,
+        row_pointers: crate::Output,
+        sorted_sample_ids: crate::Output,
+        sorted_token_ids: crate::Output,
+        sorted_gains: crate::Output,
+        activation_gradients: crate::Output,
+        tables: Vec<crate::Output>,
+        hyperparameters: Vec<crate::Output>,
+        num_minibatches_per_physical_sparse_core: crate::Output,
+        scope: &mut crate::Scope,
+    ) -> crate::Result<XlaSparseDenseMatmulGradWithCsrInputInst> {
+        let op = scope.new_operation("XlaSparseDenseMatmulGradWithCsrInput", |builder| {
+            builder.add_input(row_pointers);
+            builder.add_input(sorted_sample_ids);
+            builder.add_input(sorted_token_ids);
+            builder.add_input(sorted_gains);
+            builder.add_input(activation_gradients);
+            builder.add_input_list(&tables);
+            builder.add_input_list(&hyperparameters);
+            builder.add_input(num_minibatches_per_physical_sparse_core);
+            builder.set_attr_int("N", tables.clone().len() as i64)?;
+            builder.set_attr_int("M", hyperparameters.clone().len() as i64)?;
+            if let ::std::option::Option::Some(value) = &self.custom_computation {
+                builder.set_attr_string("custom_computation", value)?;
+            }
+            if let ::std::option::Option::Some(value) = &self.table_name {
+                builder.set_attr_string("table_name", value)?;
+            }
+            ::std::result::Result::Ok(())
+        })?;
+        Ok(XlaSparseDenseMatmulGradWithCsrInputInst { op })
+    }
+}
+impl XlaSparseDenseMatmulGradWithCsrInputInst {
+    /// Returns a Vector of updated_tables for 'updated_tables' Output of this XlaSparseDenseMatmulGradWithCsrInput operation.
+    pub fn updated_tables(&self) -> crate::Result<Vec<crate::Output>> {
+        let mut Outputs = vec![];
+        for i in 0..self.op.get_attr_int("N")? as i32 {
+            Outputs.push(crate::Output {
+                operation: self.op.clone(),
+                index: i,
+            });
+        }
+        Ok(Outputs)
+    }
+    /// Returns the 'row_pointers' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn row_pointers(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 0,
+        }
+    }
+    /// Returns the 'sorted_sample_ids' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn sorted_sample_ids(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 1,
+        }
+    }
+    /// Returns the 'sorted_token_ids' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn sorted_token_ids(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 2,
+        }
+    }
+    /// Returns the 'sorted_gains' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn sorted_gains(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 3,
+        }
+    }
+    /// Returns the 'activation_gradients' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn activation_gradients(&self) -> crate::Input {
+        crate::Input {
+            operation: &self.op,
+            index: 4,
+        }
+    }
+    /// Returns a Vector of tables for 'tables' Input of this XlaSparseDenseMatmulGradWithCsrInput operation.
+    pub fn tables(&self) -> crate::Result<Vec<crate::Input>> {
+        let mut Inputs = vec![];
+        for i in 5..self.op.get_attr_int("N")? as i32 {
+            Inputs.push(crate::Input {
+                operation: &self.op,
+                index: i,
+            });
+        }
+        Ok(Inputs)
+    }
+    /// Returns a Vector of hyperparameters for 'hyperparameters' Input of this XlaSparseDenseMatmulGradWithCsrInput operation.
+    pub fn hyperparameters(&self) -> crate::Result<Vec<crate::Input>> {
+        let dynamic_offset = (self.op.get_attr_int("N")? + 6) as i32;
+        let mut Inputs = vec![];
+        for i in dynamic_offset..dynamic_offset + self.op.get_attr_int("M")? as i32 {
+            Inputs.push(crate::Input {
+                operation: &self.op,
+                index: i,
+            });
+        }
+        Ok(Inputs)
+    }
+    /// Returns the 'num_minibatches_per_physical_sparse_core' Input of this 'XlaSparseDenseMatmulGradWithCsrInput' operation.
+    pub fn num_minibatches_per_physical_sparse_core(&self) -> crate::Result<crate::Input> {
+        let dynamic_offset = (self.op.get_attr_int("N")? + self.op.get_attr_int("M")? + 7) as i32;
+        Ok(crate::Input {
+            operation: &self.op,
+            index: dynamic_offset,
+        })
+    }
+}
+impl From<XlaSparseDenseMatmulGradWithCsrInputInst> for crate::Operation {
+    fn from(inst: XlaSparseDenseMatmulGradWithCsrInputInst) -> crate::Operation {
+        inst.op
+    }
+}
+/// Shorthand for `XlaSparseDenseMatmulGradWithCsrInput::new().build(row_pointers, sorted_sample_ids, sorted_token_ids, sorted_gains, activation_gradients, tables, hyperparameters, num_minibatches_per_physical_sparse_core, scope)`.
+pub fn xla_sparse_dense_matmul_grad_with_csr_input<
+    O0: ::std::convert::Into<crate::Output>,
+    O1: ::std::convert::Into<crate::Output>,
+    O2: ::std::convert::Into<crate::Output>,
+    O3: ::std::convert::Into<crate::Output>,
+    O4: ::std::convert::Into<crate::Output>,
+    O5: ::std::convert::Into<crate::Output>,
+    O6: ::std::convert::Into<crate::Output>,
+    O7: ::std::convert::Into<crate::Output>,
+>(
+    row_pointers: O0,
+    sorted_sample_ids: O1,
+    sorted_token_ids: O2,
+    sorted_gains: O3,
+    activation_gradients: O4,
+    tables: O5,
+    hyperparameters: O6,
+    num_minibatches_per_physical_sparse_core: O7,
+    scope: &mut crate::Scope,
+) -> crate::Result<crate::Operation> {
+    XlaSparseDenseMatmulGradWithCsrInput::new().build(
+        row_pointers,
+        sorted_sample_ids,
+        sorted_token_ids,
+        sorted_gains,
+        activation_gradients,
+        tables,
+        hyperparameters,
         num_minibatches_per_physical_sparse_core,
         scope,
     )

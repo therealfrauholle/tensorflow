@@ -8993,6 +8993,7 @@ pub struct BatchFunction {
     low_priority_allowed_batch_sizes: ::std::option::Option<::std::vec::Vec<i64>>,
     low_priority_max_enqueued_batches: ::std::option::Option<i64>,
     mixed_priority_policy: ::std::option::Option<::std::string::String>,
+    batch_padding_policy: ::std::option::Option<::std::string::String>,
     Tout: ::std::option::Option<::std::vec::Vec<crate::DataType>>,
     enable_large_batch_splitting: ::std::option::Option<bool>,
     /// (Rust wrapper specific) A device name where this op will be executed
@@ -9017,6 +9018,7 @@ impl ::std::default::Default for BatchFunction {
             mixed_priority_policy: Some(::std::string::String::from(
                 "low_priority_padding_with_max_batch_size",
             )),
+            batch_padding_policy: Some(::std::string::String::from("PAD_UP")),
             Tout: None,
             enable_large_batch_splitting: Some(false),
             target_device_name: None,
@@ -9149,6 +9151,15 @@ impl BatchFunction {
         self
     }
 
+    /// Sets the `batch_padding_policy` attribute.
+    pub fn batch_padding_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.batch_padding_policy = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `Tout` attribute.
     pub fn Tout<ArgType: ::std::convert::Into<::std::vec::Vec<crate::DataType>>>(
         mut self,
@@ -9232,6 +9243,9 @@ impl BatchFunction {
         }
         if let ::std::option::Option::Some(value) = &self.mixed_priority_policy {
             op.set_attr_string("mixed_priority_policy", value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.batch_padding_policy {
+            op.set_attr_string("batch_padding_policy", value)?;
         }
         if let ::std::option::Option::Some(value) = &self.Tout {
             op.set_attr_type_list("Tout", value)?;
@@ -18033,6 +18047,71 @@ pub fn check_numerics_v2<'a, T0: crate::eager::ToTensorHandle<'a>>(
     tensor: &T0,
 ) -> crate::Result<crate::eager::TensorHandle<'a>> {
     let op = CheckNumericsV2::new();
+    op.call(ctx, tensor)
+}
+
+/// CheckPinned
+///
+/// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/CheckPinned>
+#[derive(::std::fmt::Debug, ::std::clone::Clone)]
+pub struct CheckPinned {
+    /// (Rust wrapper specific) A device name where this op will be executed
+    target_device_name: ::std::option::Option<::std::string::String>,
+}
+impl ::std::default::Default for CheckPinned {
+    fn default() -> Self {
+        Self {
+            target_device_name: None,
+        }
+    }
+}
+impl CheckPinned {
+    /// Creates a new `CheckPinned`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `` attribute.
+    pub fn target_device_name<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.target_device_name = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Execute check_pinned.
+    pub fn call<'a, T0: crate::eager::ToTensorHandle<'a>>(
+        &self,
+        ctx: &'a crate::eager::Context,
+        tensor: &T0,
+    ) -> crate::Result<crate::eager::TensorHandle<'a>> {
+        // Define Op
+        let mut op = super::Op::new(ctx, "CheckPinned")?;
+
+        // Required input arguments
+        op.add_input(&tensor.to_handle(ctx)?)?;
+
+        // Attributes
+
+        // Set the device name where this Op will be executed
+        if let ::std::option::Option::Some(value) = &self.target_device_name {
+            op.set_device(value)?;
+        }
+        // Execute Op
+        let [h] = op.execute::<1>(ctx)?;
+        Ok(h)
+    }
+}
+
+/// Shorthand for `CheckPinned::new().call(&ctx, &tensor)`.
+///
+/// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/CheckPinned>
+pub fn check_pinned<'a, T0: crate::eager::ToTensorHandle<'a>>(
+    ctx: &'a crate::eager::Context,
+    tensor: &T0,
+) -> crate::Result<crate::eager::TensorHandle<'a>> {
+    let op = CheckPinned::new();
     op.call(ctx, tensor)
 }
 
@@ -41664,6 +41743,7 @@ pub struct ExperimentalMapDataset {
     output_shapes: ::std::option::Option<::std::vec::Vec<crate::Shape>>,
     use_inter_op_parallelism: ::std::option::Option<bool>,
     preserve_cardinality: ::std::option::Option<bool>,
+    force_synchronous: ::std::option::Option<bool>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -41675,6 +41755,7 @@ impl ::std::default::Default for ExperimentalMapDataset {
             output_shapes: None,
             use_inter_op_parallelism: Some(true),
             preserve_cardinality: Some(false),
+            force_synchronous: Some(false),
             target_device_name: None,
         }
     }
@@ -41730,6 +41811,15 @@ impl ExperimentalMapDataset {
         self
     }
 
+    /// Sets the `force_synchronous` attribute.
+    pub fn force_synchronous<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.force_synchronous = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `` attribute.
     pub fn target_device_name<ArgType: ::std::convert::Into<::std::string::String>>(
         mut self,
@@ -41768,6 +41858,9 @@ impl ExperimentalMapDataset {
         }
         if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
             op.set_attr_bool("preserve_cardinality", *value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.force_synchronous {
+            op.set_attr_bool("force_synchronous", *value)?;
         }
 
         // Set the device name where this Op will be executed
@@ -64731,6 +64824,7 @@ pub struct MapDataset {
     output_shapes: ::std::option::Option<::std::vec::Vec<crate::Shape>>,
     use_inter_op_parallelism: ::std::option::Option<bool>,
     preserve_cardinality: ::std::option::Option<bool>,
+    force_synchronous: ::std::option::Option<bool>,
     metadata: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
@@ -64743,6 +64837,7 @@ impl ::std::default::Default for MapDataset {
             output_shapes: None,
             use_inter_op_parallelism: Some(true),
             preserve_cardinality: Some(false),
+            force_synchronous: Some(false),
             metadata: None,
             target_device_name: None,
         }
@@ -64799,6 +64894,15 @@ impl MapDataset {
         self
     }
 
+    /// Sets the `force_synchronous` attribute.
+    pub fn force_synchronous<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.force_synchronous = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `metadata` attribute.
     pub fn metadata<ArgType: ::std::convert::Into<::std::string::String>>(
         mut self,
@@ -64846,6 +64950,9 @@ impl MapDataset {
         }
         if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
             op.set_attr_bool("preserve_cardinality", *value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.force_synchronous {
+            op.set_attr_bool("force_synchronous", *value)?;
         }
         if let ::std::option::Option::Some(value) = &self.metadata {
             op.set_attr_string("metadata", value)?;
@@ -78412,6 +78519,7 @@ pub struct ParallelMapDatasetV2 {
     use_inter_op_parallelism: ::std::option::Option<bool>,
     deterministic: ::std::option::Option<::std::string::String>,
     preserve_cardinality: ::std::option::Option<bool>,
+    use_unbounded_threadpool: ::std::option::Option<bool>,
     metadata: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
@@ -78425,6 +78533,7 @@ impl ::std::default::Default for ParallelMapDatasetV2 {
             use_inter_op_parallelism: Some(true),
             deterministic: Some(::std::string::String::from("default")),
             preserve_cardinality: Some(false),
+            use_unbounded_threadpool: Some(false),
             metadata: None,
             target_device_name: None,
         }
@@ -78490,6 +78599,15 @@ impl ParallelMapDatasetV2 {
         self
     }
 
+    /// Sets the `use_unbounded_threadpool` attribute.
+    pub fn use_unbounded_threadpool<ArgType: ::std::convert::Into<bool>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.use_unbounded_threadpool = ::std::option::Option::Some(value.into());
+        self
+    }
+
     /// Sets the `metadata` attribute.
     pub fn metadata<ArgType: ::std::convert::Into<::std::string::String>>(
         mut self,
@@ -78547,6 +78665,9 @@ impl ParallelMapDatasetV2 {
         }
         if let ::std::option::Option::Some(value) = &self.preserve_cardinality {
             op.set_attr_bool("preserve_cardinality", *value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.use_unbounded_threadpool {
+            op.set_attr_bool("use_unbounded_threadpool", *value)?;
         }
         if let ::std::option::Option::Some(value) = &self.metadata {
             op.set_attr_string("metadata", value)?;
@@ -101647,6 +101768,7 @@ pub fn resource_scatter_mul<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ResourceScatterNdAdd {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -101654,6 +101776,7 @@ impl ::std::default::Default for ResourceScatterNdAdd {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -101667,6 +101790,15 @@ impl ResourceScatterNdAdd {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -101704,6 +101836,9 @@ impl ResourceScatterNdAdd {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -101739,6 +101874,7 @@ pub fn resource_scatter_nd_add<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ResourceScatterNdMax {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -101746,6 +101882,7 @@ impl ::std::default::Default for ResourceScatterNdMax {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -101759,6 +101896,15 @@ impl ResourceScatterNdMax {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -101796,6 +101942,9 @@ impl ResourceScatterNdMax {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -101831,6 +101980,7 @@ pub fn resource_scatter_nd_max<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ResourceScatterNdMin {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -101838,6 +101988,7 @@ impl ::std::default::Default for ResourceScatterNdMin {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -101851,6 +102002,15 @@ impl ResourceScatterNdMin {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -101888,6 +102048,9 @@ impl ResourceScatterNdMin {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -101923,6 +102086,7 @@ pub fn resource_scatter_nd_min<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ResourceScatterNdSub {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -101930,6 +102094,7 @@ impl ::std::default::Default for ResourceScatterNdSub {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -101943,6 +102108,15 @@ impl ResourceScatterNdSub {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -101980,6 +102154,9 @@ impl ResourceScatterNdSub {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -102015,6 +102192,7 @@ pub fn resource_scatter_nd_sub<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ResourceScatterNdUpdate {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -102022,6 +102200,7 @@ impl ::std::default::Default for ResourceScatterNdUpdate {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -102035,6 +102214,15 @@ impl ResourceScatterNdUpdate {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -102071,6 +102259,9 @@ impl ResourceScatterNdUpdate {
         // Attributes
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
         }
 
         // Set the device name where this Op will be executed
@@ -112468,12 +112659,14 @@ pub fn scatter_mul<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/ScatterNd>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNd {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for ScatterNd {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112482,6 +112675,15 @@ impl ScatterNd {
     /// Creates a new `ScatterNd`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -112515,6 +112717,9 @@ impl ScatterNd {
         op.add_input(&shape.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112550,6 +112755,7 @@ pub fn scatter_nd<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdAdd {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -112557,6 +112763,7 @@ impl ::std::default::Default for ScatterNdAdd {
     fn default() -> Self {
         Self {
             use_locking: Some(false),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112570,6 +112777,15 @@ impl ScatterNdAdd {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -112607,6 +112823,9 @@ impl ScatterNdAdd {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112642,6 +112861,7 @@ pub fn scatter_nd_add<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdMax {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -112649,6 +112869,7 @@ impl ::std::default::Default for ScatterNdMax {
     fn default() -> Self {
         Self {
             use_locking: Some(false),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112662,6 +112883,15 @@ impl ScatterNdMax {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -112699,6 +112929,9 @@ impl ScatterNdMax {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112734,6 +112967,7 @@ pub fn scatter_nd_max<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdMin {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -112741,6 +112975,7 @@ impl ::std::default::Default for ScatterNdMin {
     fn default() -> Self {
         Self {
             use_locking: Some(false),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112754,6 +112989,15 @@ impl ScatterNdMin {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -112791,6 +113035,9 @@ impl ScatterNdMin {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112825,12 +113072,14 @@ pub fn scatter_nd_min<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/ScatterNdNonAliasingAdd>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdNonAliasingAdd {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for ScatterNdNonAliasingAdd {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112839,6 +113088,15 @@ impl ScatterNdNonAliasingAdd {
     /// Creates a new `ScatterNdNonAliasingAdd`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -112872,6 +113130,9 @@ impl ScatterNdNonAliasingAdd {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112907,6 +113168,7 @@ pub fn scatter_nd_non_aliasing_add<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdSub {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -112914,6 +113176,7 @@ impl ::std::default::Default for ScatterNdSub {
     fn default() -> Self {
         Self {
             use_locking: Some(false),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -112927,6 +113190,15 @@ impl ScatterNdSub {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -112964,6 +113236,9 @@ impl ScatterNdSub {
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
         }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -112999,6 +113274,7 @@ pub fn scatter_nd_sub<
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct ScatterNdUpdate {
     use_locking: ::std::option::Option<bool>,
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
@@ -113006,6 +113282,7 @@ impl ::std::default::Default for ScatterNdUpdate {
     fn default() -> Self {
         Self {
             use_locking: Some(true),
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -113019,6 +113296,15 @@ impl ScatterNdUpdate {
     /// Sets the `use_locking` attribute.
     pub fn use_locking<ArgType: ::std::convert::Into<bool>>(mut self, value: ArgType) -> Self {
         self.use_locking = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
         self
     }
 
@@ -113055,6 +113341,9 @@ impl ScatterNdUpdate {
         // Attributes
         if let ::std::option::Option::Some(value) = &self.use_locking {
             op.set_attr_bool("use_locking", *value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
         }
 
         // Set the device name where this Op will be executed
@@ -142809,12 +143098,14 @@ pub fn tensor_map_stack_keys<'a, T0: crate::eager::ToTensorHandle<'a>>(
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/TensorScatterAdd>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct TensorScatterAdd {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for TensorScatterAdd {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -142823,6 +143114,15 @@ impl TensorScatterAdd {
     /// Creates a new `TensorScatterAdd`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -142856,6 +143156,9 @@ impl TensorScatterAdd {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -142890,12 +143193,14 @@ pub fn tensor_scatter_add<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/TensorScatterMax>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct TensorScatterMax {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for TensorScatterMax {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -142904,6 +143209,15 @@ impl TensorScatterMax {
     /// Creates a new `TensorScatterMax`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -142937,6 +143251,9 @@ impl TensorScatterMax {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -142971,12 +143288,14 @@ pub fn tensor_scatter_max<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/TensorScatterMin>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct TensorScatterMin {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for TensorScatterMin {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -142985,6 +143304,15 @@ impl TensorScatterMin {
     /// Creates a new `TensorScatterMin`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -143018,6 +143346,9 @@ impl TensorScatterMin {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -143052,12 +143383,14 @@ pub fn tensor_scatter_min<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/TensorScatterSub>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct TensorScatterSub {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for TensorScatterSub {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -143066,6 +143399,15 @@ impl TensorScatterSub {
     /// Creates a new `TensorScatterSub`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -143099,6 +143441,9 @@ impl TensorScatterSub {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -143133,12 +143478,14 @@ pub fn tensor_scatter_sub<
 /// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/TensorScatterUpdate>
 #[derive(::std::fmt::Debug, ::std::clone::Clone)]
 pub struct TensorScatterUpdate {
+    bad_indices_policy: ::std::option::Option<::std::string::String>,
     /// (Rust wrapper specific) A device name where this op will be executed
     target_device_name: ::std::option::Option<::std::string::String>,
 }
 impl ::std::default::Default for TensorScatterUpdate {
     fn default() -> Self {
         Self {
+            bad_indices_policy: None,
             target_device_name: None,
         }
     }
@@ -143147,6 +143494,15 @@ impl TensorScatterUpdate {
     /// Creates a new `TensorScatterUpdate`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `bad_indices_policy` attribute.
+    pub fn bad_indices_policy<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.bad_indices_policy = ::std::option::Option::Some(value.into());
+        self
     }
 
     /// Sets the `` attribute.
@@ -143180,6 +143536,9 @@ impl TensorScatterUpdate {
         op.add_input(&updates.to_handle(ctx)?)?;
 
         // Attributes
+        if let ::std::option::Option::Some(value) = &self.bad_indices_policy {
+            op.set_attr_string("bad_indices_policy", value)?;
+        }
 
         // Set the device name where this Op will be executed
         if let ::std::option::Option::Some(value) = &self.target_device_name {
@@ -155125,6 +155484,162 @@ pub fn xla_sparse_dense_matmul_grad_with_adam_and_static_buffer_size<
         embedding_table,
         momenta,
         velocity,
+        num_minibatches_per_physical_sparse_core,
+    )
+}
+
+/// XlaSparseDenseMatmulGradWithCsrInput
+///
+/// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/XlaSparseDenseMatmulGradWithCsrInput>
+#[derive(::std::fmt::Debug, ::std::clone::Clone)]
+pub struct XlaSparseDenseMatmulGradWithCsrInput {
+    custom_computation: ::std::option::Option<::std::string::String>,
+    table_name: ::std::option::Option<::std::string::String>,
+    /// (Rust wrapper specific) A device name where this op will be executed
+    target_device_name: ::std::option::Option<::std::string::String>,
+}
+impl ::std::default::Default for XlaSparseDenseMatmulGradWithCsrInput {
+    fn default() -> Self {
+        Self {
+            custom_computation: None,
+            table_name: None,
+            target_device_name: None,
+        }
+    }
+}
+impl XlaSparseDenseMatmulGradWithCsrInput {
+    /// Creates a new `XlaSparseDenseMatmulGradWithCsrInput`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `custom_computation` attribute.
+    pub fn custom_computation<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.custom_computation = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `table_name` attribute.
+    pub fn table_name<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.table_name = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Sets the `` attribute.
+    pub fn target_device_name<ArgType: ::std::convert::Into<::std::string::String>>(
+        mut self,
+        value: ArgType,
+    ) -> Self {
+        self.target_device_name = ::std::option::Option::Some(value.into());
+        self
+    }
+
+    /// Execute xla_sparse_dense_matmul_grad_with_csr_input.
+    pub fn call<
+        'a,
+        T0: crate::eager::ToTensorHandle<'a>,
+        T1: crate::eager::ToTensorHandle<'a>,
+        T2: crate::eager::ToTensorHandle<'a>,
+        T3: crate::eager::ToTensorHandle<'a>,
+        T4: crate::eager::ToTensorHandle<'a>,
+        T5: crate::eager::ToTensorHandle<'a>,
+        T6: crate::eager::ToTensorHandle<'a>,
+        T7: crate::eager::ToTensorHandle<'a>,
+    >(
+        &self,
+        ctx: &'a crate::eager::Context,
+        row_pointers: &T0,
+        sorted_sample_ids: &T1,
+        sorted_token_ids: &T2,
+        sorted_gains: &T3,
+        activation_gradients: &T4,
+        tables: &[&T5],
+        hyperparameters: &[&T6],
+        num_minibatches_per_physical_sparse_core: &T7,
+    ) -> crate::Result<crate::eager::TensorHandle<'a>> {
+        // Define Op
+        let mut op = super::Op::new(ctx, "XlaSparseDenseMatmulGradWithCsrInput")?;
+
+        // Required input arguments
+        op.add_input(&row_pointers.to_handle(ctx)?)?;
+        op.add_input(&sorted_sample_ids.to_handle(ctx)?)?;
+        op.add_input(&sorted_token_ids.to_handle(ctx)?)?;
+        op.add_input(&sorted_gains.to_handle(ctx)?)?;
+        op.add_input(&activation_gradients.to_handle(ctx)?)?;
+        let mut tables_list = Vec::new();
+
+        for t in tables {
+            tables_list.push(t.to_handle(ctx)?);
+        }
+
+        op.add_input_list(&tables_list)?;
+        let mut hyperparameters_list = Vec::new();
+
+        for t in hyperparameters {
+            hyperparameters_list.push(t.to_handle(ctx)?);
+        }
+
+        op.add_input_list(&hyperparameters_list)?;
+        op.add_input(&num_minibatches_per_physical_sparse_core.to_handle(ctx)?)?;
+
+        // Attributes
+        if let ::std::option::Option::Some(value) = &self.custom_computation {
+            op.set_attr_string("custom_computation", value)?;
+        }
+        if let ::std::option::Option::Some(value) = &self.table_name {
+            op.set_attr_string("table_name", value)?;
+        }
+
+        // Set the device name where this Op will be executed
+        if let ::std::option::Option::Some(value) = &self.target_device_name {
+            op.set_device(value)?;
+        }
+        // Execute Op
+        let [h] = op.execute::<1>(ctx)?;
+        Ok(h)
+    }
+}
+
+/// Shorthand for `XlaSparseDenseMatmulGradWithCsrInput::new().call(&ctx, &row_pointers, &sorted_sample_ids, &sorted_token_ids, &sorted_gains, &activation_gradients, &tables, &hyperparameters, &num_minibatches_per_physical_sparse_core)`.
+///
+/// See : <https://www.tensorflow.org/api_docs/python/tf/raw_ops/XlaSparseDenseMatmulGradWithCsrInput>
+pub fn xla_sparse_dense_matmul_grad_with_csr_input<
+    'a,
+    T0: crate::eager::ToTensorHandle<'a>,
+    T1: crate::eager::ToTensorHandle<'a>,
+    T2: crate::eager::ToTensorHandle<'a>,
+    T3: crate::eager::ToTensorHandle<'a>,
+    T4: crate::eager::ToTensorHandle<'a>,
+    T5: crate::eager::ToTensorHandle<'a>,
+    T6: crate::eager::ToTensorHandle<'a>,
+    T7: crate::eager::ToTensorHandle<'a>,
+>(
+    ctx: &'a crate::eager::Context,
+    row_pointers: &T0,
+    sorted_sample_ids: &T1,
+    sorted_token_ids: &T2,
+    sorted_gains: &T3,
+    activation_gradients: &T4,
+    tables: &[&T5],
+    hyperparameters: &[&T6],
+    num_minibatches_per_physical_sparse_core: &T7,
+) -> crate::Result<crate::eager::TensorHandle<'a>> {
+    let op = XlaSparseDenseMatmulGradWithCsrInput::new();
+    op.call(
+        ctx,
+        row_pointers,
+        sorted_sample_ids,
+        sorted_token_ids,
+        sorted_gains,
+        activation_gradients,
+        tables,
+        hyperparameters,
         num_minibatches_per_physical_sparse_core,
     )
 }
