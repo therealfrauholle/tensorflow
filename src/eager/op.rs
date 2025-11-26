@@ -23,7 +23,9 @@ use tensorflow_sys as tf;
     clippy::needless_lifetimes
 )]
 /// This module contains raw_ops that correspond to [`tf.raw_ops`](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
-pub mod raw_ops;
+pub mod raw_ops {
+    include!(concat!(env!("OUT_DIR"), "/raw_ops.rs"));
+}
 
 /// Description of the TensorFlow op to execute, for the eager execution.
 ///

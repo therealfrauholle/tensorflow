@@ -7,9 +7,11 @@ fn main() {
 
     let ops = std::fs::read(path_to_ops_pbtxt).unwrap();
 
-    let mut generated = File::create("raw_ops.rs").unwrap();
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
+    let mut generated = File::create(out_dir.join("raw_ops.rs")).unwrap();
     tensorflow_op_codegen::eager::generate(&ops, &mut generated).unwrap();
 
-    let mut generated = File::create("ops_impl.rs").unwrap();
+    let mut generated = File::create(out_dir.join("ops_impl.rs")).unwrap();
     tensorflow_op_codegen::ops::generate(&ops, &mut generated).unwrap();
 }

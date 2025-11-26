@@ -25,9 +25,16 @@ pub use random_ops::*;
 #[allow(
     clippy::double_parens,
     clippy::too_many_arguments,
-    clippy::wrong_self_convention
+    clippy::wrong_self_convention,
+    non_snake_case,
+    trivial_casts,
+    unused_parens,
+    unused_qualifications,
+    unused_variables
 )]
-mod ops_impl;
+mod ops_impl {
+    include!(concat!(env!("OUT_DIR"), "/ops_impl.rs"));
+}
 pub use ops_impl::*;
 
 #[cfg(test)]
