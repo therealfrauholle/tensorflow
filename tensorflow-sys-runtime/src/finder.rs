@@ -12,7 +12,7 @@ pub fn find(library_name: &str) -> Option<PathBuf> {
         library_name,
         env::consts::DLL_SUFFIX
     );
-    log::info!("Attempting to find library: {}", file);
+    log::info!("Attempting to find library: {file}");
 
     // We search for the library in various different places and early-return if we find it.
     macro_rules! check_and_return {

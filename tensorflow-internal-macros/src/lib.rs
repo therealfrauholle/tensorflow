@@ -315,7 +315,7 @@ impl<'a> ToTokens for ShortFn<'a> {
         };
         let build_fn_args = BuildFnArgs { args: self.args };
         let arg_names = self.args.iter().map(|arg| &arg.name);
-        let mut docs = format!("Shorthand for `{}::new().build(scope)", name);
+        let mut docs = format!("Shorthand for `{name}::new().build(scope)");
         for arg in self.args {
             docs.push_str(", ");
             docs.push_str(&arg.name.to_string());

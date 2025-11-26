@@ -60,9 +60,9 @@ fn main() {
         }
         if target_os() != "windows" {
             // There is no tensorflow_framework.dll
-            println!("cargo:rustc-link-lib=dylib={}", FRAMEWORK_LIBRARY);
+            println!("cargo:rustc-link-lib=dylib={FRAMEWORK_LIBRARY}");
         }
-        println!("cargo:rustc-link-lib=dylib={}", LIBRARY);
+        println!("cargo:rustc-link-lib=dylib={LIBRARY}");
         return;
     }
 
@@ -110,13 +110,13 @@ fn check_windows_lib() -> bool {
     if target_os() != "windows" {
         return false;
     }
-    let windows_lib: &str = &format!("{}.lib", LIBRARY);
+    let windows_lib: &str = &format!("{LIBRARY}.lib");
     if let Ok(path) = env::var("PATH") {
         for p in path.split(';') {
             let path = Path::new(p).join(windows_lib);
             if path.exists() {
-                println!("cargo:rustc-link-lib=dylib={}", LIBRARY);
-                println!("cargo:rustc-link-search=native={}", p);
+                println!("cargo:rustc-link-lib=dylib={LIBRARY}");
+                println!("cargo:rustc-link-search=native={p}");
                 return true;
             }
         }
@@ -211,8 +211,7 @@ fn install_prebuilt() {
     let windows = target_os() == "windows";
     let ext = if windows { ".zip" } else { ".tar.gz" };
     let binary_url = format!(
-        "https://storage.googleapis.com/tensorflow/versions/{}/libtensorflow-{}-{}-{}{}",
-        VERSION, proc_type, os, arch, ext
+        "https://storage.googleapis.com/tensorflow/versions/{VERSION}/libtensorflow-{proc_type}-{os}-{arch}{ext}"
     );
     log_var!(binary_url);
     let short_file_name = binary_url.split('/').next_back().unwrap();
@@ -266,9 +265,9 @@ fn install_prebuilt() {
 
     if target_os() != "windows" {
         // There is no tensorflow_framework.dll
-        println!("cargo:rustc-link-lib=dylib={}", FRAMEWORK_LIBRARY);
+        println!("cargo:rustc-link-lib=dylib={FRAMEWORK_LIBRARY}");
     }
-    println!("cargo:rustc-link-lib=dylib={}", LIBRARY);
+    println!("cargo:rustc-link-lib=dylib={LIBRARY}");
     let output = PathBuf::from(&get!("OUT_DIR"));
 
     // NOTE: The following shouldn't strictly be necessary. See note above `extract`.
@@ -317,9 +316,11 @@ fn build_from_src() {
 
     let output = PathBuf::from(&get!("OUT_DIR"));
     log_var!(output);
-    let source = PathBuf::from(&get!("CARGO_MANIFEST_DIR")).join(format!("target/source-{}", TAG));
+    // FIXME writing to the manifest dir from the build script is officially not
+    // supported
+    let source = PathBuf::from(&get!("CARGO_MANIFEST_DIR")).join(format!("target/source-{TAG}"));
     log_var!(source);
-    let lib_dir = output.join(format!("lib-{}", TAG));
+    let lib_dir = output.join(format!("lib-{TAG}"));
     log_var!(lib_dir);
     if lib_dir.exists() {
         log!("Directory {:?} already exists", lib_dir);
@@ -327,11 +328,11 @@ fn build_from_src() {
         log!("Creating directory {:?}", lib_dir);
         fs::create_dir(lib_dir.clone()).unwrap();
     }
-    let framework_unversioned_library_path = lib_dir.join(format!("lib{}.so", FRAMEWORK_LIBRARY));
-    let framework_library_path = lib_dir.join(format!("lib{}.so.2", FRAMEWORK_LIBRARY));
+    let framework_unversioned_library_path = lib_dir.join(format!("lib{FRAMEWORK_LIBRARY}.so"));
+    let framework_library_path = lib_dir.join(format!("lib{FRAMEWORK_LIBRARY}.so.2"));
     log_var!(framework_library_path);
-    let unversioned_library_path = lib_dir.join(format!("lib{}.so", LIBRARY));
-    let library_path = lib_dir.join(format!("lib{}.so.2", LIBRARY));
+    let unversioned_library_path = lib_dir.join(format!("lib{LIBRARY}.so"));
+    let library_path = lib_dir.join(format!("lib{LIBRARY}.so.2"));
     log_var!(library_path);
     if library_path.exists() && framework_library_path.exists() {
         log!(
@@ -342,8 +343,7 @@ fn build_from_src() {
     } else {
         if let Err(e) = check_bazel() {
             println!(
-                "cargo:error=Bazel must be installed at version {} or greater. (Error: {})",
-                MIN_BAZEL, e
+                "cargo:error=Bazel must be installed at version {MIN_BAZEL} or greater. (Error: {e})"
             );
             process::exit(1);
         }
@@ -355,7 +355,7 @@ fn build_from_src() {
             run("git", |command| {
                 command
                     .arg("clone")
-                    .arg(format!("--branch={}", TAG))
+                    .arg(format!("--branch={TAG}"))
                     .arg("--recursive")
                     .arg(REPOSITORY)
                     .arg(&source)
@@ -409,14 +409,13 @@ fn build_from_src() {
         );
         if framework_library_path.exists() {
             fs::remove_file(&framework_library_path)
-                .with_context(|| format!("{:?} should be removable", framework_library_path))
+                .with_context(|| format!("{framework_library_path:?} should be removable"))
                 .unwrap();
         }
         fs::copy(&framework_target_bazel_bin, &framework_library_path)
             .with_context(|| {
                 format!(
-                    "{:?} should be copyable to {:?}",
-                    framework_target_bazel_bin, framework_library_path
+                    "{framework_target_bazel_bin:?} should be copyable to {framework_library_path:?}",
                 )
             })
             .unwrap();
@@ -424,16 +423,11 @@ fn build_from_src() {
         log!("Copying {:?} to {:?}", target_bazel_bin, library_path);
         if library_path.exists() {
             fs::remove_file(&library_path)
-                .with_context(|| format!("{:?} should be removable", library_path))
+                .with_context(|| format!("{library_path:?} should be removable"))
                 .unwrap()
         }
         fs::copy(&target_bazel_bin, &library_path)
-            .with_context(|| {
-                format!(
-                    "{:?} should be copyable to {:?}",
-                    target_bazel_bin, library_path
-                )
-            })
+            .with_context(|| format!("{target_bazel_bin:?} should be copyable to {library_path:?}"))
             .unwrap();
     }
     symlink(
@@ -441,8 +435,8 @@ fn build_from_src() {
         framework_unversioned_library_path,
     );
     symlink(library_path.file_name().unwrap(), unversioned_library_path);
-    println!("cargo:rustc-link-lib=dylib={}", FRAMEWORK_LIBRARY);
-    println!("cargo:rustc-link-lib=dylib={}", LIBRARY);
+    println!("cargo:rustc-link-lib=dylib={FRAMEWORK_LIBRARY}");
+    println!("cargo:rustc-link-lib=dylib={LIBRARY}");
     println!("cargo:rustc-link-search={}", lib_dir.display());
 }
 
@@ -492,8 +486,7 @@ fn check_bazel() -> Result<(), Box<dyn Error>> {
             let want = Version::parse(MIN_BAZEL)?;
             if version < want {
                 return Err(format!(
-                    "Installed version {} is less than required version {}",
-                    version_str, MIN_BAZEL
+                    "Installed version {version_str} is less than required version {MIN_BAZEL}"
                 )
                 .into());
             }

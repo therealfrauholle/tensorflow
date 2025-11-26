@@ -23,9 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             Status::new_set(
                 Code::NotFound,
                 &format!(
-                    "Run 'python addition.py' to generate {} \
-                     and try again.",
-                    filename
+                    "Run 'python addition.py' to generate {filename} \
+                     and try again."
                 ),
             )
             .unwrap(),
