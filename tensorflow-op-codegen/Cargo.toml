@@ -3,10 +3,8 @@ name = "tensorflow-op-codegen"
 version = "0.1.0"
 authors = ["Adam Crume <acrume@google.com>"]
 edition = "2018"
-default-run = "tensorflow-op-codegen"
 
 [dependencies]
 nom = "6.2.1"
-protobuf = "=2.23.0"
+protobuf = "=2.27.1" # match with workspace version
 
-[workspace]
