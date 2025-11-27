@@ -348,7 +348,7 @@ impl Graph {
             Some(operation) => Ok(operation),
             None => Err(Status::new_set(
                 Code::Unavailable,
-                &format!("Operation {:?} not found", operation_name),
+                &format!("Operation {operation_name:?} not found"),
             )
             .unwrap()),
         }
@@ -1684,24 +1684,14 @@ impl Operation {
     }
 }
 
-impl From<Operation> for Output {
-    /// Creates an Output for index 0.
-    fn from(operation: Operation) -> Output {
-        Output {
-            operation,
-            index: 0,
-        }
-    }
-}
-
 ////////////////////////
 
 /// A `Input` is one end of a graph edge.
 /// It holds an operation and an index into the inputs of that operation.
-#[derive(Debug, Copy, Clone)]
-pub struct Input<'a> {
+#[derive(Debug, Clone)]
+pub struct Input {
     /// Operation the edge connects to.
-    pub operation: &'a Operation,
+    pub operation: Operation,
 
     /// Index into either the inputs of the operation.
     pub index: c_int,
@@ -1861,17 +1851,20 @@ impl<'a> OperationDescription<'a> {
     /// Adds an input to this operation.
     ///
     /// The index in the port is an index into the source operation's output array.
-    pub fn add_input<I: Into<Output>>(&mut self, input: I) {
+    pub fn add_input<I: std::borrow::Borrow<Output>>(&mut self, input: I) {
         unsafe {
-            tf::TF_AddInput(self.inner, input.into().to_c());
+            tf::TF_AddInput(self.inner, input.borrow().to_c());
         }
     }
 
     /// Adds multiple inputs to this operation.
     ///
     /// The index in the ports is an index into the source operation's output array.
-    pub fn add_input_list(&mut self, inputs: &[Output]) {
-        let c_inputs: Vec<tf::TF_Output> = inputs.iter().map(|x| x.to_c()).collect();
+    pub fn add_input_list<'i, I: Iterator<Item = &'i Output>>(
+        &mut self,
+        inputs: impl IntoIterator<Item = &'i Output, IntoIter = I>,
+    ) {
+        let c_inputs: Vec<tf::TF_Output> = inputs.into_iter().map(|x| x.to_c()).collect();
         unsafe {
             tf::TF_AddInputList(self.inner, c_inputs.as_ptr(), c_inputs.len() as c_int);
         }
@@ -2480,15 +2473,15 @@ mod tests {
 
     fn add(g: &mut Graph, op1: Operation, op2: Operation, name: &str) -> Result<Operation> {
         let mut nd = g.new_operation("Add", name)?;
-        nd.add_input(op1);
-        nd.add_input(op2);
+        nd.add_input(op1.output(0));
+        nd.add_input(op2.output(0));
         nd.finish()
     }
 
     fn multiply(g: &mut Graph, op1: Operation, op2: Operation, name: &str) -> Result<Operation> {
         let mut nd = g.new_operation("Mul", name)?;
-        nd.add_input(op1);
-        nd.add_input(op2);
+        nd.add_input(op1.output(0));
+        nd.add_input(op2.output(0));
         nd.finish()
     }
 
@@ -2533,9 +2526,9 @@ mod tests {
         let x = constant(&mut graph, "x/assign_0", x_init);
         assert_eq!(1, x.num_outputs());
         assert_eq!(x.output_type(0), DataType::Int32);
-        let dims = graph.num_dims(x.clone()).unwrap();
+        let dims = graph.num_dims(x.output(0)).unwrap();
         assert_eq!(dims, 2);
-        let shape = graph.tensor_shape(x.clone()).unwrap();
+        let shape = graph.tensor_shape(x.output(0)).unwrap();
         assert_eq!(shape, Shape(Some(vec![Some(3_i64), Some(3_i64)])));
     }
 
@@ -2558,8 +2551,8 @@ mod tests {
         };
         let y = multiply(&mut g, two.clone(), x.clone(), "y").unwrap();
         let opers = vec![&y];
-        let inputs = vec![x.clone().into(), two.clone().into()];
-        let outputs = vec![y.clone().into()];
+        let inputs = vec![x.output(0), two.output(0)];
+        let outputs = vec![y.output(0)];
         let output_names = vec!["result"];
         let description = "Multiplies by 2";
         let opts = FunctionOptions::new();
@@ -2623,8 +2616,8 @@ mod tests {
 
         let op = {
             let mut nd = g.new_operation("Assign", "Assign").unwrap();
-            nd.add_input(variable_op.clone());
-            nd.add_input(variable_op.clone());
+            nd.add_input(variable_op.output(0));
+            nd.add_input(variable_op.output(0));
             nd.set_attr_bool("validate_shape", true).unwrap();
             nd.set_attr_bool("use_locking", false).unwrap();
             nd.finish().unwrap()
@@ -2644,7 +2637,7 @@ mod tests {
                 nd.finish().unwrap()
             };
             let mut nd = g.new_operation("MaxPool", "MaxPool").unwrap();
-            nd.add_input(variable_op);
+            nd.add_input(variable_op.output(0));
             nd.set_attr_int_list("ksize", &[1, 2, 3, 4]).unwrap();
             nd.set_attr_int_list("strides", &[1, 1, 1, 1]).unwrap();
             nd.set_attr_string("padding", "VALID").unwrap();
@@ -2657,7 +2650,7 @@ mod tests {
 
         let op = {
             let mut nd = g.new_operation("TensorSummary", "TensorSummary").unwrap();
-            nd.add_input(variable_op.clone());
+            nd.add_input(variable_op.output(0));
             nd.set_attr_string_list("labels", &["foo", "bar"]).unwrap();
             nd.finish().unwrap()
         };
@@ -2670,8 +2663,8 @@ mod tests {
             let mut nd = g
                 .new_operation("ApproximateEqual", "ApproximateEqual")
                 .unwrap();
-            nd.add_input(variable_op.clone());
-            nd.add_input(variable_op.clone());
+            nd.add_input(variable_op.output(0));
+            nd.add_input(variable_op.output(0));
             nd.set_attr_float("tolerance", 42.42).unwrap();
             nd.finish().unwrap()
         };
@@ -2679,7 +2672,7 @@ mod tests {
 
         let op = {
             let mut nd = g.new_operation("Bucketize", "Bucketize").unwrap();
-            nd.add_input(variable_op.clone());
+            nd.add_input(variable_op.output(0));
             nd.set_attr_float_list("boundaries", &[0.1, 2.3]).unwrap();
             nd.finish().unwrap()
         };
@@ -2819,7 +2812,7 @@ mod tests {
             nd.set_attr_shape("shape", &Shape(None)).unwrap();
             nd.finish().unwrap()
         };
-        let output = op.into();
+        let output = op.output(0);
         let mut opts = ImportGraphDefOptions::new();
         opts.add_input_mapping("bar", 3, &output).unwrap();
         // An empty array is a valid proto, since all fields are optional.
@@ -2897,8 +2890,8 @@ mod tests {
             let x_times_y = multiply(&mut g, x.clone(), y.clone(), "x_times_y").unwrap();
             let x_plus_y = add(&mut g, x.clone(), y.clone(), "x_plus_y").unwrap();
             // y_outs and x_outs are intentionally different lengths, so we can test that the lengths line up properly.
-            let y_outs = vec![x_squared.into(), x_times_y.into(), x_plus_y.into()];
-            let x_outs = vec![x.into(), y.into()];
+            let y_outs = vec![x_squared.output(0), x_times_y.output(0), x_plus_y.output(0)];
+            let x_outs = vec![x.output(0), y.output(0)];
             let dy = g.add_gradients(*prefix, &y_outs, &x_outs, None).unwrap();
             assert_eq!(dy.len(), 2);
             for d in dy {
@@ -2934,17 +2927,17 @@ mod tests {
             };
             let argmax_x = {
                 let mut nd = g.new_operation("ArgMax", "argmax_x").unwrap();
-                nd.add_input(x.clone());
-                nd.add_input(zero);
+                nd.add_input(x.output(0));
+                nd.add_input(zero.output(0));
                 nd.finish().unwrap()
             };
             let stopped_gradient = {
                 let mut nd = g.new_operation("StopGradient", "stopped").unwrap();
-                nd.add_input(argmax_x.clone());
+                nd.add_input(argmax_x.output(0));
                 nd.finish().unwrap()
             };
-            let y_outs = vec![stopped_gradient.into()];
-            let x_outs = vec![x.into()];
+            let y_outs = vec![stopped_gradient.output(0)];
+            let x_outs = vec![x.output(0)];
             let dy = g.add_gradients(*prefix, &y_outs, &x_outs, None).unwrap();
             assert_eq!(dy.len(), 1);
             for d in &dy {
@@ -2972,12 +2965,12 @@ mod tests {
             };
             let argmax_x = {
                 let mut nd = g.new_operation("ArgMax", "argmax_x").unwrap();
-                nd.add_input(x.clone());
-                nd.add_input(zero);
+                nd.add_input(x.output(0));
+                nd.add_input(zero.output(0));
                 nd.finish().unwrap()
             };
-            let y_outs = vec![argmax_x.into()];
-            let x_outs = vec![x.into()];
+            let y_outs = vec![argmax_x.output(0)];
+            let x_outs = vec![x.output(0)];
             assert!(g.add_gradients(*prefix, &y_outs, &x_outs, None).is_err());
         }
     }
@@ -2993,7 +2986,7 @@ mod tests {
         };
         let _y_op = {
             let mut nd = graph.new_operation("EncodeBase64", "y").unwrap();
-            nd.add_input(x_op.clone());
+            nd.add_input(x_op.output(0));
             nd.finish().unwrap()
         };
         assert_eq!(x_op.num_outputs(), 1);

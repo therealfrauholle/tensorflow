@@ -210,7 +210,7 @@ fn or_constant<T: TensorType, TT: Into<Tensor<T>>>(
 ) -> Result<Output> {
     match value {
         Some(x) => Ok(x.clone()),
-        None => Ok(ops::constant(default, scope)?.into()),
+        None => Ok(ops::constant(default, scope)?.output(0)),
     }
 }
 
@@ -224,7 +224,7 @@ fn create_zeros_slot(
         .add_control_input(primary.initializer.clone())
         .build(primary.output.clone(), scope)?;
     Variable::builder()
-        .initial_value(zeros)
+        .initial_value(zeros.output(0))
         .shape(primary.shape.clone())
         .data_type(dtype)
         .build(scope)
@@ -296,7 +296,7 @@ mod tests {
         let (minimizer_vars, minimize) = sgd
             .minimize(
                 &mut scope,
-                x_squared.into(),
+                x_squared.output(0),
                 MinimizeOptions::default().with_variables(&[x_var.clone()]),
             )
             .unwrap();
@@ -351,11 +351,11 @@ mod tests {
             .unwrap();
         let x_squared = ops::mul(x_var.output.clone(), x_var.output.clone(), &mut scope).unwrap();
         let mut optimizer = AdadeltaOptimizer::new();
-        optimizer.set_learning_rate(ops::constant(0.1f32, &mut scope).unwrap());
+        optimizer.set_learning_rate(ops::constant(0.1f32, &mut scope).unwrap().output(0));
         let (minimizer_vars, minimize) = optimizer
             .minimize(
                 &mut scope,
-                x_squared.into(),
+                x_squared.output(0),
                 MinimizeOptions::default().with_variables(&[x_var.clone()]),
             )
             .unwrap();
@@ -419,10 +419,10 @@ mod tests {
         let w_shape = ops::constant(&[2, hidden_size as i64][..], scope).unwrap();
         let w_init = ops::RandomStandardNormal::new()
             .dtype(DataType::Float)
-            .build(w_shape, scope)
+            .build(w_shape.output(0), scope)
             .unwrap();
         let w = Variable::builder()
-            .initial_value(w_init)
+            .initial_value(w_init.output(0))
             .data_type(DataType::Float)
             .shape([2, hidden_size])
             .build(&mut scope.with_op_name("w"))
@@ -432,19 +432,19 @@ mod tests {
             .build(&mut scope.with_op_name("b"))
             .unwrap();
         let layer1a = ops::MatMul::new()
-            .build(input.clone(), w.output.clone(), scope)
+            .build(input.output(0), w.output.clone(), scope)
             .unwrap();
         let layer1b = ops::Add::new()
-            .build(layer1a, b.output.clone(), scope)
+            .build(layer1a.output(0), b.output.clone(), scope)
             .unwrap();
-        let layer1 = ops::Tanh::new().build(layer1b, scope).unwrap();
+        let layer1 = ops::Tanh::new().build(layer1b.output(0), scope).unwrap();
         let w2_shape = ops::constant(&[hidden_size as i64, 1][..], scope).unwrap();
         let w2_init = ops::RandomStandardNormal::new()
             .dtype(DataType::Float)
-            .build(w2_shape, scope)
+            .build(w2_shape.output(0), scope)
             .unwrap();
         let w2 = Variable::builder()
-            .initial_value(w2_init)
+            .initial_value(w2_init.output(0))
             .data_type(DataType::Float)
             .shape([hidden_size, 1])
             .build(&mut scope.with_op_name("w2"))
@@ -453,11 +453,11 @@ mod tests {
             .const_initial_value(Tensor::<f32>::new(&[1]))
             .build(&mut scope.with_op_name("b2"))
             .unwrap();
-        let layer2a = ops::mat_mul(layer1, w2.output.clone(), scope).unwrap();
-        let layer2b = ops::add(layer2a, b2.output.clone(), scope).unwrap();
+        let layer2a = ops::mat_mul(layer1.output(0), w2.output.clone(), scope).unwrap();
+        let layer2b = ops::add(layer2a.output(0), b2.output.clone(), scope).unwrap();
         let layer2 = layer2b;
-        let error = ops::sub(layer2.clone(), label.clone(), scope).unwrap();
-        let error_squared = ops::mul(error.clone(), error, scope).unwrap();
+        let error = ops::sub(layer2.output(0), label.output(0), scope).unwrap();
+        let error_squared = ops::mul(error.output(0), error.output(0), scope).unwrap();
         let sgd = GradientDescentOptimizer {
             learning_rate: Output {
                 operation: ops::constant(0.1f32, scope).unwrap(),
@@ -468,7 +468,7 @@ mod tests {
         let (minimizer_vars, minimize) = sgd
             .minimize(
                 scope,
-                error_squared.clone().into(),
+                error_squared.output(0),
                 MinimizeOptions::default().with_variables(&variables),
             )
             .unwrap();

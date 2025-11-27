@@ -2444,7 +2444,7 @@ mod tests {
         };
         let y_op = {
             let mut nd = g.new_operation("EncodeBase64", "y").unwrap();
-            nd.add_input(x_op.clone());
+            nd.add_input(x_op.output(0));
             nd.finish().unwrap()
         };
         let options = SessionOptions::new();

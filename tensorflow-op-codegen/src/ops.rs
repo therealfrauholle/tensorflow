@@ -1,644 +1,554 @@
 use crate::parser;
 use crate::protos::op_def::OpDef;
+use proc_macro2::Ident;
+use proc_macro2::Span;
+use proc_macro2::TokenStream;
+use protobuf::RepeatedField;
+use quote::format_ident;
+use quote::quote;
+use quote::ToTokens;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::error::Error;
-use std::fmt::Write as _;
-use std::io;
-use std::io::ErrorKind;
 use std::io::Write;
 use std::result::Result;
+use tensorflow_proto::opdef::op_def::OpDef_ArgDef;
+use tensorflow_proto::opdef::op_def::OpDef_AttrDef;
 
-#[derive(Clone)]
-struct Attr {
-    rust_name: String,
-    attr_type: String,
-    c_name: String,
-}
-#[derive(Clone)]
-struct Output {
-    rust_name: String,
-    number_attr: Option<String>,
-}
+/// The order of arguments is well-defined because the tensorflow API identifies an argument by an index.
+#[derive(Debug, Clone)]
+struct Arguments<'a>(&'a RepeatedField<OpDef_ArgDef>);
 
-#[derive(Clone)]
-struct Input {
-    rust_name: String,
-    number_attr: Option<String>,
-}
-/// Input and Output shared behaviour
-trait Edge {
-    fn rust_name(&self) -> &str;
-    fn number_attr(&self) -> Option<&str>;
-    fn edge_type(&self) -> &str;
-}
-impl Edge for &Input {
-    fn rust_name(&self) -> &str {
-        &self.rust_name
+impl<'a> Arguments<'a> {
+    /// Snake case identifier, unique.
+    fn rust_field(&self) -> Vec<Ident> {
+        self.0
+            .iter()
+            .map(|edge| Ident::new_raw(&snake_name(&edge.name), Span::call_site()))
+            .collect()
     }
-    fn number_attr(&self) -> Option<&str> {
-        if let Some(ref number_attr) = self.number_attr {
-            Some(number_attr)
-        } else {
-            None
-        }
-    }
-    fn edge_type(&self) -> &str {
-        "Input"
-    }
-}
-impl Edge for &Output {
-    fn rust_name(&self) -> &str {
-        &self.rust_name
-    }
-    fn number_attr(&self) -> Option<&str> {
-        if let Some(ref number_attr) = self.number_attr {
-            Some(number_attr)
-        } else {
-            None
-        }
-    }
-    fn edge_type(&self) -> &str {
-        "Output"
-    }
-}
 
-fn write_set_attr<W: Write>(w: &mut W, attr: &Attr, node_var: &str) -> Result<(), io::Error> {
-    let c_name = &attr.c_name;
-    let rust_name = &attr.rust_name;
-    let setter = match attr.attr_type.as_str() {
-        "::std::string::String" => format!("{}.set_attr_string(\"{}\", value)?", node_var, c_name),
-        "crate::DataType" => format!("{}.set_attr_type(\"{}\", *value)?", node_var, c_name),
-        "bool" => format!("{}.set_attr_bool(\"{}\", *value)?", node_var, c_name),
-        "f32" => format!("{}.set_attr_float(\"{}\", *value)?", node_var, c_name),
-        "i64" => format!("{}.set_attr_int(\"{}\", *value)?", node_var, c_name),
-        "crate::Shape" => format!("{}.set_attr_shape(\"{}\", value)?", node_var, c_name),
-        "crate::Tensor" => format!("{}.set_attr_any_tensor(\"{}\", value)?", node_var, c_name),
-        "::std::vec::Vec<::std::string::String>" => {
-            format!("{}.set_attr_string_list(\"{}\", value)?", node_var, c_name)
-        }
-        "::std::vec::Vec<f32>" => {
-            format!("{}.set_attr_float_list(\"{}\", value)?", node_var, c_name)
-        }
-        "::std::vec::Vec<i64>" => format!("{}.set_attr_int_list(\"{}\", value)?", node_var, c_name),
-        "::std::vec::Vec<crate::DataType>" => {
-            format!("{}.set_attr_type_list(\"{}\", value)?", node_var, c_name)
-        }
-        "::std::vec::Vec<crate::Shape>" => {
-            format!("{}.set_attr_shape_list(\"{}\", value)?", node_var, c_name)
-        }
-        ty => panic!("Unrecognized attribute type for {}: {}", attr.rust_name, ty),
-    };
-    writeln!(
-        w,
-        "        if let ::std::option::Option::Some(value) = &self.{} {{",
-        rust_name
-    )?;
-    writeln!(w, "            {};", setter)?;
-    writeln!(w, "        }}")?;
-    Ok(())
-}
+    /// When non-scalar this will reference the attribute defining the length of the argument..
+    fn number_attr(&self) -> Vec<Option<&'a str>> {
+        self.0
+            .iter()
+            .map(|attr| {
+                if attr.number_attr.is_empty() {
+                    None
+                } else {
+                    Some(attr.number_attr.as_str())
+                }
+            })
+            .collect()
+    }
 
-fn write_short_fn<W: Write>(
-    w: &mut W,
-    name: &str,
-    fn_name: &str,
-    args: &[String],
-    keywords: &HashSet<String>,
-) -> Result<(), io::Error> {
-    let mut escaper = Escaper::new(keywords);
-    let escaped_args: Vec<_> = args.iter().map(|arg| escaper.escape(arg)).collect();
-    write!(w, "/// Shorthand for `{}::new().build(", name)?;
-    for arg in &escaped_args {
-        write!(w, "{}, ", &arg)?;
+    /// For each argument specifies previous arguments.
+    fn previous_arguments(&self) -> Vec<PreviousArguments> {
+        let mut seen_edges = PreviousArguments::default();
+        self.c_number_attr()
+            .iter()
+            .map(|edge| {
+                let current = seen_edges.clone();
+                if let Some(number_attr) = edge {
+                    *seen_edges
+                        .previous_nonscalar_attributes_count
+                        .entry(number_attr.to_string())
+                        .or_insert(0) += 1;
+                } else {
+                    seen_edges.previous_scalar_count += 1;
+                }
+                current
+            })
+            .collect()
     }
-    let scope_var = escaper.escape("scope");
-    writeln!(w, "{})`.", scope_var)?;
-    write!(w, "pub fn {}<", fn_name)?;
-    for i in 0..args.len() {
-        if i > 0 {
-            write!(w, ", ")?;
-        }
-        write!(w, "O{}: ::std::convert::Into<crate::Output>", i)?;
-    }
-    write!(w, ">(")?;
-    for (i, arg) in escaped_args.iter().enumerate() {
-        write!(w, "{}: O{}, ", arg, i)?;
-    }
-    writeln!(
-        w,
-        "{}: &mut crate::Scope) -> crate::Result<crate::Operation> {{",
-        scope_var
-    )?;
-    write!(w, "    {}::new().build(", name)?;
-    for arg in escaped_args {
-        write!(w, "{}, ", arg)?;
-    }
-    writeln!(w, "{})", scope_var)?;
-    writeln!(w, "}}")?;
-    Ok(())
-}
 
-fn write_attr_setter<W: Write>(w: &mut W, attr: &Attr) -> Result<(), io::Error> {
-    writeln!(w)?;
-    writeln!(w, "    /// Sets the `{}` attribute.", &attr.c_name)?;
-    let rust_name = &attr.rust_name;
-    let attr_type = &attr.attr_type;
-    let mut value = "value.into()".to_string();
-    if attr_type == "crate::Tensor" {
-        value = format!(
-            "(::std::boxed::Box::new({}) as ::std::boxed::Box<dyn crate::AnyTensor>)",
-            value
-        );
-        writeln!(
-            w,
-            "    pub fn {}<T: crate::TensorType, ArgType: ::std::convert::Into<crate::Tensor<T>>>(mut self, value: ArgType) -> Self {{",
-            rust_name
-        )?;
-    } else {
-        writeln!(
-            w,
-            "    pub fn {}<ArgType: ::std::convert::Into<{}>>(mut self, value: ArgType) -> Self {{",
-            rust_name, attr_type
-        )?;
-    }
-    writeln!(
-        w,
-        "        self.{} = ::std::option::Option::Some({});",
-        rust_name, value
-    )?;
-    writeln!(w, "        self")?;
-    writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn write_build_fn<W: Write>(
-    w: &mut W,
-    op_name: &str,
-    args: &[String],
-    keywords: &HashSet<String>,
-) -> Result<(), io::Error> {
-    let mut escaper = Escaper::new(keywords);
-    let escaped_args: Vec<_> = args.iter().map(|arg| escaper.escape(arg)).collect();
-
-    writeln!(w, "    /// Builds the `{}` operation.", op_name)?;
-    write!(w, "    pub fn build<")?;
-    for i in 0..args.len() {
-        if i > 0 {
-            write!(w, ", ")?;
-        }
-        write!(w, "O{}: ::std::convert::Into<crate::Output>", i)?;
-    }
-    write!(w, ">(&self, ")?;
-    for (i, arg) in escaped_args.iter().enumerate() {
-        write!(w, "{}: O{}, ", arg, i)?;
-    }
-    let scope_var = escaper.escape("scope");
-    writeln!(
-        w,
-        r#"{scope}: &mut crate::Scope) -> crate::Result<crate::Operation> {{"#,
-        scope = scope_var,
-    )?;
-    write!(w, "        self.build_impl(")?;
-    for arg in &escaped_args {
-        write!(w, "{}.into(), ", arg)?;
-    }
-    writeln!(w, "{})", scope_var)?;
-    writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn write_build_impl_fn<W: Write>(
-    w: &mut W,
-    op_name: &str,
-    args: &[String],
-    attrs: &[Attr],
-    keywords: &HashSet<String>,
-) -> Result<(), io::Error> {
-    let mut escaper = Escaper::new(keywords);
-    let escaped_args: Vec<_> = args.iter().map(|arg| escaper.escape(arg)).collect();
-    write!(w, "    fn build_impl(&self, ")?;
-    for arg in &escaped_args {
-        write!(w, "{}: crate::Output, ", arg)?;
-    }
-    let scope_var = escaper.escape("scope");
-    let node_var = escaper.escape("nd");
-    write!(
-        w,
-        r#"{scope}: &mut crate::Scope) -> crate::Result<crate::Operation> {{
-        {scope}.new_operation({op_name:?}, |{node}| {{
-"#,
-        scope = scope_var,
-        op_name = op_name,
-        node = node_var,
-    )?;
-    for arg in escaped_args {
-        writeln!(w, "            {}.add_input({});", node_var, arg)?;
-    }
-    writeln!(w, "            for op in &self.control_inputs {{")?;
-    writeln!(w, "                {}.add_control_input(op);", node_var)?;
-    writeln!(w, "            }}")?;
-    for attr in attrs {
-        write_set_attr(w, attr, &node_var)?;
-    }
-    writeln!(w, "            ::std::result::Result::Ok(())")?;
-    writeln!(w, "        }})")?;
-    writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn write_attr<W: Write>(w: &mut W, attr: &Attr) -> Result<(), io::Error> {
-    if attr.attr_type == "crate::Tensor" {
-        writeln!(
-            w,
-            "    {}: ::std::option::Option<::std::boxed::Box<dyn crate::AnyTensor>>,",
-            attr.rust_name
-        )?;
-    } else {
-        writeln!(
-            w,
-            "    {}: ::std::option::Option<{}>,",
-            attr.rust_name, attr.attr_type
-        )?;
-    }
-    Ok(())
-}
-
-fn write_build_operation_struct<W: Write>(w: &mut W, op_name: &str) -> Result<(), io::Error> {
-    writeln!(
-        w,
-        "/// An instance of '{}' Operation with it's Outputs and Inputs exposed as methods.",
-        op_name
-    )?;
-    writeln!(w, "#[derive(Debug, Clone)]")?;
-    writeln!(w, "pub struct {}Inst {{", op_name)?;
-    writeln!(
-        w,
-        "    /// An instance of a fully built {} Operation in a Tensorflow graph.",
-        op_name
-    )?;
-    writeln!(w, "    pub op: crate::Operation,")?;
-    writeln!(w, "}}")?;
-
-    Ok(())
-}
-
-///Takes a vector of dynamic_offset strings for inputs and outputs and returns a concatenated
-///string of scalar_offsets to calculate the index of inputs and offsets by extracting the sum with
-///the distributive property.
-fn scalar_offsets(dynamic_offset: &[String], i: usize) -> String {
-    let scalar_offsets = dynamic_offset
-        .iter()
-        .fold(HashMap::new(), |mut counts, string| {
-            *counts.entry(string).or_insert(0) += 1;
-            counts
-        })
-        .iter()
-        .fold(String::new(), |mut scalar_offset, (string, count)| {
-            //identity property
-            if count > &1 {
-                write!(scalar_offset, "{}*{}+", count, string).unwrap();
-            } else {
-                write!(scalar_offset, "{}+", string).unwrap();
-            }
-            scalar_offset
-        });
-    if scalar_offsets.is_empty() {
-        format!("{}", i)
-    } else {
-        format!("{}{}", scalar_offsets, i)
+    /// Identifies the attribute to the tensorflow API.
+    fn c_number_attr(&self) -> Vec<Option<&'a str>> {
+        self.0
+            .iter()
+            .map(|edge| {
+                if edge.number_attr.is_empty() {
+                    None
+                } else {
+                    Some(edge.number_attr.as_str())
+                }
+            })
+            .collect()
     }
 }
 
-fn write_build_instance_fn<W: Write>(
-    w: &mut W,
-    op_name: &str,
-    attrs: &[Attr],
-    inputs: Vec<Input>,
-    keywords: &HashSet<String>,
-) -> Result<(), io::Error> {
-    let mut escaper = Escaper::new(keywords);
-    writeln!(w, "    /// Builds a new instance of '{}' Operation with it's Outputs and Inputs exposed as methods.", op_name)?;
-    write!(w, "    pub fn build_instance(&self, ")?;
-    let mut seen_number_attr = HashMap::new();
-    for input in &inputs {
-        if input.number_attr.is_some() {
-            write!(w, "{}: Vec<crate::Output>, ", input.clone().rust_name)?;
-            seen_number_attr
-                .entry(input.clone().number_attr.unwrap())
-                .or_insert_with(|| input.clone());
-        } else {
-            write!(w, "{}: crate::Output, ", input.rust_name)?;
-        }
-    }
-    let scope_var = escaper.escape("scope");
-    write!(
-        w,
-        r#"{scope_var}: &mut crate::Scope) -> crate::Result<{op_name}Inst> {{
-        let op = {scope_var}.new_operation({op_name:?}, |builder| {{
-"#,
-        op_name = op_name,
-    )?;
-    for input in &inputs {
-        if input.number_attr.is_some() {
-            //TODO: how are multiple lists handled here? may be an error with lower level protobuff
-            //      bindings in OperationDescription. Is this ordered parameter wise internally?
-            writeln!(
-                w,
-                "            builder.add_input_list(&{input});",
-                input = input.rust_name,
-            )?;
-        } else {
-            writeln!(w, "            builder.add_input({});", input.rust_name)?;
-        }
+struct Attributes<'a>(&'a OpDef, Box<dyn Fn(&OpDef_AttrDef) -> bool + 'a>);
+
+impl<'a> Attributes<'a> {
+    fn filtered<'b>(&'b self) -> impl Iterator<Item = &'a OpDef_AttrDef> + 'b {
+        self.0.attr.iter().filter(move |attr| self.1(attr))
     }
 
-    for attr in attrs {
-        if seen_number_attr.contains_key(&attr.rust_name) {
-            writeln!(
-                w,
-                "            builder.set_attr_int(\"{}\", {}.clone().len() as i64)?;",
-                attr.rust_name,
-                seen_number_attr.get(&attr.rust_name).unwrap().rust_name
-            )?;
-        } else {
-            write_set_attr(w, attr, "builder")?;
-        }
+    fn name(&self) -> Vec<Ident> {
+        self.filtered()
+            .map(|attr| Ident::new_raw(&attr.name, Span::call_site()))
+            .collect()
     }
-    writeln!(w, "            ::std::result::Result::Ok(())")?;
-    writeln!(w, "        }})?;")?;
-    writeln!(w, "        Ok({}Inst{{op}})", op_name)?;
-    writeln!(w, "    }}")?;
-    Ok(())
+
+    fn types(&self) -> Vec<AttrType> {
+        self.filtered()
+            .map(|attr| AttrType::from_str(&attr.field_type))
+            .collect()
+    }
+
+    fn c_name(&self) -> Vec<&'a str> {
+        self.filtered().map(|attr| attr.name.as_str()).collect()
+    }
 }
 
-fn write_edge_method<T: Edge + Clone>(
-    w: &mut impl Write,
-    op_name: String,
-    edge: T,
-    i: usize,
-    dynamic_offset: &mut Vec<String>,
-) -> Result<(), io::Error> {
-    let scalar_offsets = scalar_offsets(dynamic_offset, i);
-    let edge_type = edge.edge_type();
-    let rust_name = edge.rust_name();
+/// Restructured [OpDef] for easier rust code generation.
+struct Operation<'a>(&'a OpDef);
 
-    let mut op = "self.op.clone()";
-    if edge_type == "Input" {
-        op = "&self.op";
+impl<'a> Arguments<'a> {}
+
+impl<'a> Operation<'a> {
+    /// All independent attributes, excluding those referenced by [Edge::number_attr].
+    fn independent_attrs<'b>(&'b self) -> Attributes<'b> {
+        Attributes(
+            self.0,
+            Box::new(move |attr| {
+                self.input()
+                    .number_attr()
+                    .iter()
+                    .all(|number_attr| *number_attr != Some(attr.name.as_str()))
+                    && self
+                        .output()
+                        .number_attr()
+                        .iter()
+                        .all(|number_attr| *number_attr != Some(&attr.name))
+            }),
+        )
     }
-    if let Some(number_attr) = &edge.number_attr() {
-        //create a Vec<Edge> for this index
-        writeln!(
-            w,
-            "    /// Returns a Vector of {} for '{}' {} of this {} operation.",
-            rust_name, rust_name, edge_type, op_name
-        )?;
-        writeln!(
-            w,
-            "    pub fn {}(&self) -> crate::Result<Vec<crate::{}>>{{",
-            rust_name, edge_type
-        )?;
-        if scalar_offsets.contains("self") {
-            writeln!(
-                w,
-                "        let dynamic_offset = ({}) as i32;",
-                scalar_offsets
-            )?;
-        }
-        writeln!(w, "        let mut {}s = vec![];", edge_type)?;
-        if dynamic_offset.is_empty() {
-            writeln!(
-                w,
-                "        for i in {}..self.op.get_attr_int({:?})? as i32{{",
-                i, number_attr
-            )?;
-            writeln!(
-                w,
-                "            {edge_type}s.push(crate::{edge_type} {{",
-                edge_type = edge_type
-            )?;
-            writeln!(w, "                operation: {},", op)?;
-            writeln!(w, "                index: i")?;
-            writeln!(w, "            }});")?;
-            writeln!(w, "        }}")?;
-        } else {
-            writeln!(
-                w,
-                "        for i in dynamic_offset..dynamic_offset+self.op.get_attr_int(\"{}\")? as i32{{",
-                number_attr
-            )?;
-            writeln!(
-                w,
-                "            {edge_type}s.push(crate::{edge_type} {{",
-                edge_type = edge_type
-            )?;
-            writeln!(w, "                operation: {},", op)?;
-            writeln!(w, "                index: i")?;
-            writeln!(w, "            }});")?;
-            writeln!(w, "        }}")?;
-        }
-        writeln!(w, "        Ok({}s)", edge_type)?;
-        writeln!(w, "    }}")?;
-        //add the current self.op.get_attr_int(number_attr) to dynamic_offset to keep the current index into the Operations edges
-        dynamic_offset.push(format!("self.op.get_attr_int(\"{}\")?", number_attr));
-    } else {
-        //create a single edge at the current dynamic_offset index
-        writeln!(
-            w,
-            "    /// Returns the '{}' {} of this '{}' operation.",
-            rust_name, edge_type, op_name
-        )?;
-        //if scalar_offsets is just the i value, we dont return a result since this is statically indexed
-        if scalar_offsets == format!("{}", i) {
-            writeln!(
-                w,
-                "    pub fn {}(&self) -> crate::{} {{",
-                rust_name, edge_type
-            )?;
-            writeln!(w, "        crate::{} {{", edge_type)?;
-            writeln!(w, "            operation: {},", op)?;
-            writeln!(w, "            index: {}", i)?;
-            writeln!(w, "        }}")?;
-            writeln!(w, "    }}")?;
-        } else {
-            writeln!(
-                w,
-                "   pub fn {}(&self) -> crate::Result<crate::{}> {{",
-                rust_name, edge_type
-            )?;
-            if scalar_offsets.contains("self") {
-                writeln!(
-                    w,
-                    "        let dynamic_offset = ({}) as i32;",
-                    scalar_offsets
-                )?;
-            }
-            writeln!(w, "        Ok(crate::{} {{", edge_type)?;
-            writeln!(w, "            operation: {},", op)?;
-            writeln!(w, "            index: dynamic_offset")?;
-            writeln!(w, "        }})")?;
-            writeln!(w, "    }}")?;
-        }
+
+    /// Identifies the operation to the Tensorflow API.
+    fn c_name(&self) -> &'a str {
+        &self.0.name
     }
-    Ok(())
+
+    fn output(&self) -> Arguments<'a> {
+        Arguments(&self.0.output_arg)
+    }
+
+    fn input(&self) -> Arguments<'a> {
+        Arguments(&self.0.input_arg)
+    }
+
+    fn input_aliases(&self) -> Vec<Ident> {
+        (0..self.0.input_arg.len())
+            .map(|index| Ident::new(&format!("O{index}"), Span::call_site()))
+            .collect()
+    }
 }
 
-///writes the impl for the output struct that includes slicing implementations for Outputs that have output.number_attr set
-fn write_build_instance_struct_impl<W: Write>(
-    w: &mut W,
-    op_name: &str,
-    outputs: Vec<Output>,
-    inputs: Vec<Input>,
-) -> Result<(), io::Error> {
-    writeln!(w, "impl {}Inst {{", op_name)?;
-
-    let mut dynamic_offset: Vec<String> = vec![];
-    //write methods for outputs
-    for (i, output) in outputs.iter().enumerate() {
-        write_edge_method(w, op_name.to_string(), output, i, &mut dynamic_offset)?;
-    }
-    //write methods for inputs
-    let mut dynamic_offset: Vec<String> = vec![];
-    for (i, input) in inputs.iter().enumerate() {
-        write_edge_method(w, op_name.to_string(), input, i, &mut dynamic_offset)?;
-    }
-
-    writeln!(w, "}}")?;
-    writeln!(w, "impl From<{op_name}Inst> for crate::Operation {{")?;
-    writeln!(w, "    fn from(inst: {op_name}Inst) -> crate::Operation {{")?;
-    writeln!(w, "        inst.op")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "}}")?;
-
-    Ok(())
+#[derive(Debug, Default, Clone)]
+pub struct PreviousArguments {
+    /// Number of preceeding scalar arguments.
+    previous_scalar_count: usize,
+    /// Previous arguments with dynamic (non-scalar) length.
+    ///
+    /// The length is defined
+    /// specifying the length will have an entry here, mapping to the count of appearances for
+    /// all previous edges.
+    previous_nonscalar_attributes_count: HashMap<String, usize>,
 }
 
-fn define_op<W: Write>(
-    w: &mut W,
-    keywords: &HashSet<String>,
-    fn_escaper: &mut Escaper,
-    struct_escaper: &mut Escaper,
-    op: &OpDef,
-) -> Result<(), io::Error> {
-    let fn_name = fn_escaper.escape(&snake_name(&op.name));
-    let name = struct_escaper.escape(&op.name);
-    let op_name = op.name.clone();
-    let mut op_outputs = vec![];
-    let mut op_inputs = vec![];
-    let args: Vec<_> = op.input_arg.iter().map(|arg| arg.name.clone()).collect();
-    let mut attrs = Vec::new();
-    let mut attr_escaper = Escaper::new(keywords);
-    let mut output_escaper = Escaper::new(keywords);
-    let mut input_escaper = Escaper::new(keywords);
-    for attr in op.attr.iter() {
-        let rust_type = match &attr.field_type as &str {
-            // See OpDef.AttrDef.type in $TENSORFLOW/tensorflow/core/framework/op_def.proto
-            // and AttrValue in $TENSORFLOW/tensorflow/core/framework/attr_value.proto
-            "string" => "::std::string::String",
-            "int" => "i64",
-            "float" => "f32",
-            "bool" => "bool",
-            "type" => "crate::DataType",
-            "shape" => "crate::Shape",
-            "tensor" => "crate::Tensor",
-            "func" => "::std::string::String",
-            "list(string)" => "::std::vec::Vec<::std::string::String>",
-            "list(int)" => "::std::vec::Vec<i64>",
-            "list(float)" => "::std::vec::Vec<f32>",
-            "list(bool)" => "::std::vec::Vec<bool>",
-            "list(type)" => "::std::vec::Vec<crate::DataType>",
-            "list(shape)" => "::std::vec::Vec<crate::Shape>",
-            "list(tensor)" => "::std::vec::Vec<crate::Tensor>",
-            "list(func)" => "::std::vec::Vec<::std::string::String>",
-            t => {
-                return Err(io::Error::new(
-                    ErrorKind::InvalidInput,
-                    format!(
-                        "unrecognized field type {:?} for attribute {:?} of op {:?}",
-                        t, &attr.name, &op_name
-                    ),
-                ))
-            }
-        };
-        attrs.push(Attr {
-            rust_name: attr_escaper.escape(&attr.name),
-            attr_type: rust_type.to_string(),
-            c_name: attr.name.clone(),
-        });
-    }
-
-    for output in op.output_arg.iter() {
-        let number_attr_opt = if output.number_attr.is_empty() {
-            None
-        } else {
-            Some(output.number_attr.clone())
-        };
-        op_outputs.push(Output {
-            rust_name: output_escaper.escape(&output.name),
-            number_attr: number_attr_opt,
-        });
-    }
-    for input in op.input_arg.iter() {
-        let number_attr_opt = if input.number_attr.is_empty() {
-            None
-        } else {
-            Some(input.number_attr.clone())
-        };
-        op_inputs.push(Input {
-            rust_name: input_escaper.escape(&input.name),
-            number_attr: number_attr_opt,
-        });
-    }
-
-    writeln!(w, "/// Builder for the `{}` operation.", op_name)?;
-    writeln!(w, "#[derive(::std::fmt::Debug, ::std::default::Default)]")?;
-    writeln!(w, "pub struct {} {{", name)?;
-    for attr in &attrs {
-        write_attr(w, attr)?;
-    }
-    write!(
-        w,
-        r#"    control_inputs: ::std::vec::Vec<crate::Operation>,
-}}
-"#
-    )?;
-    write_build_operation_struct(w, &op_name)?;
-
-    write!(
-        w,
-        r#"
-impl {name} {{
-    /// Creates a new `{name}`.
-    pub fn new() -> Self {{
-        Self::default()
-    }}
-"#,
-        name = name
-    )?;
-    for attr in &attrs {
-        write_attr_setter(w, attr)?;
-    }
-    write!(
-        w,
-        r#"
-    /// Adds a control input.
-    pub fn add_control_input(mut self, op: crate::Operation) -> Self {{
-        self.control_inputs.push(op);
+impl PreviousArguments {
+    /// Scalar offset of the next edge, given the name of the number_attr of the previous edge or None
+    /// when the edge has only a width of one
+    fn edge_index(&self) -> TokenStream {
+        let scalar_edges = self.previous_scalar_count;
         self
-    }}
+        .previous_nonscalar_attributes_count
+        .iter()
+        .fold(quote!((#scalar_edges as i32)), |scalar_offset, (string, count)|
+                quote!(#scalar_offset + self.op.get_attr_int(#string)? as i32 * (#count as i32))
+        )
+    }
+}
 
-"#
-    )?;
-    write_build_fn(w, &op_name, &args, keywords)?;
-    write_build_impl_fn(w, &op_name, &args, &attrs, keywords)?;
-    writeln!(w)?;
-    write_build_instance_fn(w, &op_name, &attrs, op_inputs.clone(), keywords)?;
-    writeln!(w, "}}")?;
-    write_build_instance_struct_impl(w, &op_name, op_outputs, op_inputs)?;
-    write_short_fn(w, &name, &fn_name, &args, keywords)?;
-    writeln!(w)?;
-    Ok(())
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum AttrType {
+    Tensor,
+    List(AttrTypePrimitive),
+    Primitive(AttrTypePrimitive),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum AttrTypePrimitive {
+    String,
+    Float,
+    Integer,
+    Shape,
+    Type,
+    Bool,
+}
+
+impl AttrType {
+    fn from_str(attr: &str) -> Self {
+        match attr {
+            "string" => AttrType::Primitive(AttrTypePrimitive::String),
+            "int" => AttrType::Primitive(AttrTypePrimitive::Integer),
+            "float" => AttrType::Primitive(AttrTypePrimitive::Float),
+            "bool" => AttrType::Primitive(AttrTypePrimitive::Bool),
+            "type" => AttrType::Primitive(AttrTypePrimitive::Type),
+            "shape" => AttrType::Primitive(AttrTypePrimitive::Shape),
+            "tensor" => AttrType::Tensor,
+            "func" => AttrType::Primitive(AttrTypePrimitive::String),
+            "list(string)" => AttrType::List(AttrTypePrimitive::String),
+            "list(int)" => AttrType::List(AttrTypePrimitive::Integer),
+            "list(float)" => AttrType::List(AttrTypePrimitive::Float),
+            "list(bool)" => AttrType::List(AttrTypePrimitive::Bool),
+            "list(type)" => AttrType::List(AttrTypePrimitive::Type),
+            "list(shape)" => AttrType::List(AttrTypePrimitive::Shape),
+            "list(func)" => AttrType::List(AttrTypePrimitive::String),
+            t => {
+                panic!("unrecognized field type {:?}", t)
+            }
+        }
+    }
+}
+
+impl ToTokens for AttrTypePrimitive {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(match self {
+            AttrTypePrimitive::String => quote!(::std::string::String),
+            AttrTypePrimitive::Float => quote!(f32),
+            AttrTypePrimitive::Integer => quote!(i64),
+            AttrTypePrimitive::Shape => quote!(crate::Shape),
+            AttrTypePrimitive::Type => quote!(crate::DataType),
+            AttrTypePrimitive::Bool => quote!(bool),
+        });
+    }
+}
+
+impl ToTokens for AttrType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(match self {
+            AttrType::List(attr_type_primitive) => quote!(::std::vec::Vec<#attr_type_primitive>),
+            AttrType::Primitive(attr_type_primitive) => quote!(#attr_type_primitive),
+            AttrType::Tensor => quote!(::std::boxed::Box<dyn crate::AnyTensor>),
+        });
+    }
+}
+
+fn buildfn_set_attr(
+    rust_name: &Ident,
+    attr_type: &AttrType,
+    c_name: &str,
+    node_var: &Ident,
+) -> TokenStream {
+    let setter = match attr_type {
+        AttrType::Primitive(AttrTypePrimitive::String) => {
+            quote!( #node_var.set_attr_string(#c_name, value)?; )
+        }
+        AttrType::Primitive(AttrTypePrimitive::Type) => {
+            quote!( #node_var.set_attr_type(#c_name, *value)?; )
+        }
+        AttrType::Primitive(AttrTypePrimitive::Bool) => {
+            quote!( #node_var.set_attr_bool(#c_name, *value)?; )
+        }
+        AttrType::Primitive(AttrTypePrimitive::Float) => {
+            quote!( #node_var.set_attr_float(#c_name, *value)?; )
+        }
+        AttrType::Primitive(AttrTypePrimitive::Integer) => {
+            quote!( #node_var.set_attr_int(#c_name, *value)?; )
+        }
+        AttrType::Primitive(AttrTypePrimitive::Shape) => {
+            quote!( #node_var.set_attr_shape(#c_name, value)?; )
+        }
+        AttrType::List(AttrTypePrimitive::String) => {
+            quote!( #node_var.set_attr_string_list(#c_name, value)?; )
+        }
+        AttrType::List(AttrTypePrimitive::Float) => {
+            quote!( #node_var.set_attr_float_list(#c_name, value)?; )
+        }
+        AttrType::List(AttrTypePrimitive::Integer) => {
+            quote!( #node_var.set_attr_int_list(#c_name, value)?; )
+        }
+        AttrType::List(AttrTypePrimitive::Type) => {
+            quote!( #node_var.set_attr_type_list(#c_name, value)?; )
+        }
+        AttrType::List(AttrTypePrimitive::Shape) => {
+            quote!( #node_var.set_attr_shape_list(#c_name, value)?; )
+        }
+        AttrType::Tensor => {
+            quote!( #node_var.set_attr_any_tensor(#c_name, value)?; )
+        }
+        ty => panic!("Unrecognized attribute type for {}: {:?}", rust_name, ty),
+    };
+    quote! {
+        if let ::std::option::Option::Some(value) = &self.#rust_name {
+            #setter
+        }
+    }
+}
+
+fn inst_edge_method(
+    rust_name: &Ident,
+    offsets: &PreviousArguments,
+    number_attr: Option<&str>,
+    edge_type: &Ident,
+    name: &str,
+) -> TokenStream {
+    let edge_index = offsets.edge_index();
+
+    if let Some(name_attr) = number_attr {
+        quote! {
+            #[doc = "Returns a Vector of "]
+            #[doc = stringify!(#rust_name)]
+            #[doc = " for '"]
+            #[doc = stringify!(#rust_name)]
+            #[doc = "' "]
+            #[doc = stringify!(#edge_type)]
+            #[doc = " of this "]
+            #[doc = #name]
+            #[doc = " operation."]
+            pub fn #rust_name(&self) -> crate::Result<Vec<crate::#edge_type>>{
+                let dynamic_offset = (#edge_index) as i32;
+                let mut ret = vec![];
+                for i in dynamic_offset..self.op.get_attr_int(#name_attr)? as i32 {
+                    ret.push(crate::#edge_type {
+                        operation: self.op.clone(),
+                        index: i
+                    });
+                }
+
+                Ok(ret)
+            }
+        }
+    } else {
+        quote! {
+            #[doc = "Returns the '"]
+            #[doc = stringify!(#rust_name)]
+            #[doc = "' "]
+            #[doc = stringify!(#edge_type)]
+            #[doc = " of this "]
+            #[doc = #name]
+            #[doc = " operation."]
+            pub fn #rust_name(&self) -> crate::Result<crate::#edge_type>{
+                let offset = (#edge_index) as i32;
+                Ok(crate::#edge_type {
+                    operation: self.op.clone(),
+                    index: offset
+                })
+            }
+        }
+    }
+}
+
+fn per_op_code(op: &Operation) -> TokenStream {
+    let c_name = op.c_name();
+    let builder_name = Ident::new_raw(c_name, Span::call_site());
+    let inst_name = format_ident!("{}Inst", c_name);
+    let short_build_name = Ident::new_raw(&snake_name(c_name), Span::call_site());
+
+    let rust_field_output = op.output().rust_field();
+    let rust_field_input = op.input().rust_field();
+    let previous_edges_output = op.output().previous_arguments();
+    let previous_edges_input = op.input().previous_arguments();
+    let c_number_attr_output = op.output().c_number_attr();
+    let c_number_attr_input = op.input().c_number_attr();
+    let in_type_alias = op.input_aliases();
+    let attr_name = op.independent_attrs().name();
+    let attr_type = op.independent_attrs().types();
+    let attr_c_name = op.independent_attrs().c_name();
+
+    let builder_var = Ident::new("builder", Span::call_site());
+    let scope_var = Ident::new("scope", Span::call_site());
+
+    let set_attrs = attr_name
+        .iter()
+        .zip(attr_type.iter())
+        .zip(attr_c_name.iter())
+        .map(|((attr_name, attr_type), attr_c_name)| {
+            buildfn_set_attr(attr_name, attr_type, attr_c_name, &builder_var)
+        })
+        .collect::<Vec<_>>();
+
+    let input_argument_type = c_number_attr_input
+        .iter()
+        .map(|input| {
+            if input.is_some() {
+                quote!(Vec<crate::Output>)
+            } else {
+                quote!(crate::Output)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let addinput_method = c_number_attr_input
+        .iter()
+        .map(|number_attr| {
+            if number_attr.is_some() {
+                quote!(add_input_list)
+            } else {
+                quote!(add_input)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let (dynamic_input_number_attr, dynamic_input_name): (Vec<&str>, Vec<&Ident>) =
+        c_number_attr_input
+            .iter()
+            .zip(rust_field_input.iter())
+            .filter_map(|(number_attr, rust_name)| {
+                number_attr.map(|number_attr| (number_attr, rust_name))
+            })
+            .collect();
+
+    let output_getter = rust_field_output
+        .iter()
+        .zip(previous_edges_output.iter())
+        .zip(c_number_attr_output.iter())
+        .map(|((rust_name, previous_edges), number_attr)| {
+            inst_edge_method(
+                rust_name,
+                previous_edges,
+                number_attr.as_deref(),
+                &Ident::new("Output", Span::call_site()),
+                c_name,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let input_getter = rust_field_input
+        .iter()
+        .zip(previous_edges_input.iter())
+        .zip(c_number_attr_input.iter())
+        .map(|((rust_name, previous_edges), number_attr)| {
+            inst_edge_method(
+                rust_name,
+                previous_edges,
+                number_attr.as_deref(),
+                &Ident::new("Input", Span::call_site()),
+                c_name,
+            )
+        });
+
+    quote! {
+        #[doc = "Builder for the `"]
+        #[doc = #c_name]
+        #[doc = " operation."]
+        #[derive(::std::fmt::Debug, ::std::default::Default)]
+        pub struct #builder_name {
+            control_inputs: ::std::vec::Vec<crate::Operation>,
+            #(#attr_name: ::std::option::Option<#attr_type>,)*
+        }
+
+        impl #builder_name {
+            /// just no docs
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            #(
+                #[doc = "Sets the `"]
+                #[doc = #c_name]
+                #[doc = "` attribute."]
+                pub fn #attr_name<T: std::convert::Into<#attr_type>>(mut self, value: T) -> Self {
+
+                    self.#attr_name = ::std::option::Option::Some(value.into());
+                    self
+                }
+            )*
+
+            /// Adds a control input.
+            pub fn add_control_input(mut self, op: crate::Operation) -> Self {
+                self.control_inputs.push(op);
+                self
+            }
+
+            #[doc = "Builds the `"]
+            #[doc = #c_name]
+            #[doc = "` operation."]
+            pub fn build<
+                #(#in_type_alias: ::std::convert::Into<#input_argument_type>),*
+            >(
+                &self,
+                #(#rust_field_input: #in_type_alias,)*
+                #scope_var: &mut crate::Scope
+            ) -> crate::Result<crate::Operation> {
+                self.build_impl(#(#rust_field_input.into(),)* #scope_var)
+            }
+
+            // FIXME document why we need this functiom over 'build_impl'. What are
+            // 'control_inputs'
+            fn build_impl(
+                &self,
+                #(#rust_field_input: #input_argument_type,)*
+                #scope_var: &mut crate::Scope
+            ) -> crate::Result<crate::Operation> {
+                #scope_var.new_operation(#c_name, |#builder_var| {
+                    #(#builder_var.#addinput_method(&#rust_field_input);)*
+                    for op in &self.control_inputs {
+                        #builder_var.add_control_input(op);
+                    }
+                    #(#builder_var.set_attr_int(#dynamic_input_number_attr, #dynamic_input_name.len() as i64)?;)*
+                    #(#set_attrs)*
+                    ::std::result::Result::Ok(())
+                })
+            }
+
+            #[doc = "Builds a new instance of '"]
+            #[doc = #c_name]
+            #[doc = "' Operation with it's Outputs and Inputs exposed as methods."]
+            pub fn build_instance(
+                &self,
+                #(#rust_field_input: #input_argument_type,)*
+                #scope_var: &mut crate::Scope
+            ) -> crate::Result<#inst_name> {
+                let op = #scope_var.new_operation(#c_name, |#builder_var| {
+                    #(#builder_var.#addinput_method(&#rust_field_input);)*
+                    #(#builder_var.set_attr_int(#dynamic_input_number_attr, #dynamic_input_name.len() as i64)?;)*
+                    #(#set_attrs)*
+                    Ok(())
+                })?;
+
+                Ok(#inst_name {op})
+            }
+        }
+
+        #[doc = "Shorthand for `"]
+        #[doc = stringify!(#builder_name)]
+        #[doc ="::new().build("]
+        #(#[doc = stringify!(#rust_field_input)] #[doc = ","])*
+        #[doc = stringify!(#scope_var)]
+        #[doc = ")`."]
+        pub fn #short_build_name<
+            #(#in_type_alias:  ::std::convert::Into<#input_argument_type>),*
+        >(
+            #(#rust_field_input: #in_type_alias,)*
+            #scope_var: &mut crate::Scope
+        ) -> crate::Result<crate::Operation> {
+            #builder_name::new().build(#(#rust_field_input.into(),)* #scope_var)
+        }
+
+        #[doc = "An instance of'"]
+        #[doc = #c_name]
+        #[doc ="' Operation with it's Outputs and Inputs exposed as methods."]
+        #[derive(Debug, Clone)]
+        pub struct #inst_name {
+            #[doc = "An instance of a fully built "]
+            #[doc = #c_name]
+            #[doc =" Operation in a Tensorflow graph."]
+            pub op: crate::Operation
+        }
+
+        impl #inst_name {
+            #(#output_getter)*
+            #(#input_getter)*
+        }
+
+        impl From<#inst_name> for crate::Operation {
+            fn from(inst: #inst_name) -> crate::Operation {
+                inst.op
+            }
+        }
+    }
 }
 
 fn snake_name(name: &str) -> String {
@@ -660,36 +570,6 @@ fn snake_name(name: &str) -> String {
     s
 }
 
-struct Escaper<'a> {
-    keywords: &'a HashSet<String>,
-    used_names: HashSet<String>,
-}
-
-impl<'a> Escaper<'a> {
-    fn new(keywords: &'a HashSet<String>) -> Self {
-        Self {
-            keywords,
-            used_names: HashSet::new(),
-        }
-    }
-
-    fn escape(&mut self, name: &str) -> String {
-        let suffix = if self.keywords.contains(name) {
-            "_"
-        } else {
-            ""
-        };
-        let mut candidate = format!("{}{}", name, suffix);
-        let mut i = 2;
-        while self.used_names.contains(&candidate) {
-            candidate = format!("{}_{}", name, i);
-            i += 1;
-        }
-        self.used_names.insert(candidate.clone());
-        candidate
-    }
-}
-
 pub fn generate<W: Write>(ops_pbtxt: &[u8], mut output: W) -> Result<(), Box<dyn Error>> {
     let ops = parser::parse(ops_pbtxt).inspect_err(|e| {
         println!("Parse error at {:?}", e.pos);
@@ -699,103 +579,32 @@ pub fn generate<W: Write>(ops_pbtxt: &[u8], mut output: W) -> Result<(), Box<dyn
             println!("Next: {}", &input[*p..]);
         }
     })?;
-    let keywords: HashSet<String> = [
-        "abstract",
-        "as",
-        "async",
-        "await",
-        "become",
-        "box",
-        "break",
-        "const",
-        "continue",
-        "crate",
-        "do",
-        "dyn",
-        "else",
-        "enum",
-        "extern",
-        "false",
-        "final",
-        "fn",
-        "for",
-        "if",
-        "impl",
-        "in",
-        "let",
-        "loop",
-        "macro",
-        "match",
-        "mod",
-        "move",
-        "mut",
-        "override",
-        "priv",
-        "pub",
-        "ref",
-        "return",
-        "self",
-        "Self",
-        "static",
-        "struct",
-        "super",
-        "trait",
-        "true",
-        "try",
-        "type",
-        "typeof",
-        "unsafe",
-        "unsized",
-        "use",
-        "virtual",
-        "where",
-        "while",
-        "yield",
-        // These aren't technically keywords, but there doesn't appear to be a
-        // way to refer to these types (e.g. qualified type names) if the name
-        // has been shadowed by something else, so we treat them as keywords.
-        "bool",
-        "char",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "i128",
-        "isize",
-        "str",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "u128",
-        "usize",
-        // build, new, and add_control_input aren't keywords, but they still
-        // can't be used because they would clash with methods we're providing.
-        "build",
-        "new",
-        "add_control_input",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect();
     write!(
         &mut output,
-        r#"// DO NOT EDIT. Generated by tensorflow-op-codegen/src/main.rs.
-"#
+        "// DO NOT EDIT. Generated by tensorflow-op-codegen/src/main.rs.\n\n"
     )?;
-    let mut fn_escaper = Escaper::new(&keywords);
-    let mut struct_escaper = Escaper::new(&keywords);
-    for op in ops {
-        define_op(
-            &mut output,
-            &keywords,
-            &mut fn_escaper,
-            &mut struct_escaper,
-            &op,
-        )?;
+    for op in &ops {
+        if ![
+            "Placeholder",
+            "Add",
+            "Sub",
+            "Mul",
+            "Assign",
+            "NoOp",
+            "ApplyGradientDescent",
+            "RandomStandardNormal",
+            "Tanh",
+            "MatMul",
+            "ZerosLike",
+            "ApplyAdadelta",
+        ]
+        .contains(&op.name.as_str())
+        {
+            continue;
+        }
+        writeln!(&mut output, "{}", per_op_code(&Operation(op)))?;
     }
+    println!("Done!");
     Ok(())
 }
 
@@ -810,17 +619,5 @@ mod tests {
         assert_eq!(&snake_name("FooBar"), "foo_bar");
         assert_eq!(&snake_name("abcXYZ"), "abc_xyz");
         assert_eq!(&snake_name("abcXYZdef"), "abc_xyzdef");
-    }
-
-    #[test]
-    fn test_escaper() {
-        let mut keywords = HashSet::new();
-        keywords.insert("fn".to_string());
-        let mut escaper = Escaper::new(&keywords);
-        assert_eq!(&escaper.escape("fn"), "fn_");
-        assert_eq!(&escaper.escape("fn"), "fn_2");
-        assert_eq!(&escaper.escape("fn"), "fn_3");
-        assert_eq!(&escaper.escape("foo"), "foo");
-        assert_eq!(&escaper.escape("foo"), "foo_2");
     }
 }

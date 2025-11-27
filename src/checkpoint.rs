@@ -94,14 +94,14 @@ impl CheckpointMaker {
             let tensors = all_variable_ops
                 .iter()
                 .map(|v| v.output(0))
-                .collect::<Vec<_>>();
+                .collect::<Vec<crate::Output>>();
 
             let mut g = self.scope.graph_mut();
             let mut nd = g.new_operation("SaveV2", "save")?;
-            nd.add_input(prefix_save.clone());
-            nd.add_input(tensor_names);
-            nd.add_input(shape_and_slices);
-            nd.add_input_list(&tensors[..]);
+            nd.add_input(prefix_save.output(0));
+            nd.add_input(tensor_names.output(0));
+            nd.add_input(shape_and_slices.output(0));
+            nd.add_input_list(&tensors);
 
             let dtypes = all_variable_ops
                 .iter()
@@ -144,9 +144,9 @@ impl CheckpointMaker {
             )?;
             let mut g = self.scope.graph_mut();
             let mut nd = g.new_operation("RestoreV2", "restore")?;
-            nd.add_input(prefix_restore.clone());
-            nd.add_input(tensor_names);
-            nd.add_input(shape_and_slices);
+            nd.add_input(prefix_restore.output(0));
+            nd.add_input(tensor_names.output(0));
+            nd.add_input(shape_and_slices.output(0));
             let dtypes = all_variable_ops
                 .iter()
                 .map(|v| v.get_attr_type("dtype"))
@@ -156,7 +156,7 @@ impl CheckpointMaker {
             drop(g);
             let mut restore_var_ops = Vec::<Operation>::new();
             for (i, var) in self.variables.iter().enumerate() {
-                let var_op = var.output.operation.clone();
+                let var_op = var.output.operation.output(0);
                 restore_var_ops.push(ops::assign(
                     var_op,
                     crate::Output {
@@ -244,7 +244,7 @@ mod tests {
             .build(&mut scope.with_op_name(var.name.as_str()))?;
         Ok((
             placeholder.clone(),
-            ops::assign(var.output.clone(), placeholder, scope)?,
+            ops::assign(var.output.clone(), placeholder.output(0), scope)?,
         ))
     }
 

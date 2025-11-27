@@ -353,13 +353,13 @@ impl SavedModelBuilder {
             let tensors = all_vars
                 .iter()
                 .map(|v| v.output().clone())
-                .collect::<Vec<_>>();
+                .collect::<Vec<crate::Output>>();
             let mut g = scope.graph_mut();
             let mut nd = g.new_operation("SaveV2", "save")?;
-            nd.add_input(prefix.clone());
-            nd.add_input(tensor_names);
-            nd.add_input(shape_and_slices);
-            nd.add_input_list(&tensors[..]);
+            nd.add_input(prefix.output(0));
+            nd.add_input(tensor_names.output(0));
+            nd.add_input(shape_and_slices.output(0));
+            nd.add_input_list(&tensors);
             nd.set_attr_type_list(
                 "dtypes",
                 &all_vars.iter().map(|v| v.data_type()).collect::<Vec<_>>()[..],
@@ -382,9 +382,9 @@ impl SavedModelBuilder {
             )?;
             let mut g = scope.graph_mut();
             let mut nd = g.new_operation("RestoreV2", "restore")?;
-            nd.add_input(filename_tensor.clone());
-            nd.add_input(tensor_names);
-            nd.add_input(shape_and_slices);
+            nd.add_input(filename_tensor.output(0));
+            nd.add_input(tensor_names.output(0));
+            nd.add_input(shape_and_slices.output(0));
             nd.set_attr_type_list(
                 "dtypes",
                 &all_vars.iter().map(|v| v.data_type()).collect::<Vec<_>>()[..],

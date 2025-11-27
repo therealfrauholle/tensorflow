@@ -535,8 +535,8 @@ mod tests {
         };
         let y = {
             let mut nd = g.new_operation("Mul", "y").unwrap();
-            nd.add_input(two);
-            nd.add_input(x.clone());
+            nd.add_input(two.output(0));
+            nd.add_input(x.output(0));
             nd.finish().unwrap()
         };
         let options = SessionOptions::new();

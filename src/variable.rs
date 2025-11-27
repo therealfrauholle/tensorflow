@@ -145,14 +145,14 @@ impl<'a> VariableBuilder<'a> {
             VariableInitialValue::Unspecified => {
                 return Err(invalid_arg!("an initial value is required"))
             }
-            VariableInitialValue::TensorBox(t) => ops::any_constant(t.borrow(), scope)?.into(),
-            VariableInitialValue::TensorRef(t) => ops::any_constant(t, scope)?.into(),
+            VariableInitialValue::TensorBox(t) => ops::any_constant(t.borrow(), scope)?.output(0),
+            VariableInitialValue::TensorRef(t) => ops::any_constant(t, scope)?.output(0),
             VariableInitialValue::Output(o) => o,
         };
-        let initializer = ops::assign(variable_op.clone(), initial_value, scope)?;
+        let initializer = ops::assign(variable_op.output(0), initial_value, scope)?;
         Ok(Variable {
             name,
-            output: variable_op.into(),
+            output: variable_op.output(0),
             initializer,
             dtype,
             shape: self.shape,
@@ -247,7 +247,7 @@ mod tests {
 
         assert_eq!(
             Variable::builder()
-                .initial_value(const_op)
+                .initial_value(const_op.output(0))
                 .build(&mut scope.with_op_name("foo"))
                 .unwrap_err()
                 .code(),
@@ -262,7 +262,7 @@ mod tests {
         let const_op = ops::constant(value, &mut scope).unwrap();
 
         let variable = Variable::builder()
-            .initial_value(const_op)
+            .initial_value(const_op.output(0))
             .data_type(DataType::Float)
             .build(&mut scope.with_op_name("foo"))
             .unwrap();

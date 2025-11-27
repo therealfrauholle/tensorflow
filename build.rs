@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf, process::Command};
 
 fn main() {
     let path_to_tensorflow = PathBuf::from(std::env::var("PATH_TO_TENSORFLOW").unwrap());
@@ -14,4 +14,18 @@ fn main() {
 
     let mut generated = File::create(out_dir.join("ops_impl.rs")).unwrap();
     tensorflow_op_codegen::ops::generate(&ops, &mut generated).unwrap();
+    Command::new("rustfmt")
+        .arg(format!("{}", out_dir.join("ops_impl.rs").display()))
+        .status()
+        .unwrap()
+        .success()
+        .then_some(())
+        .unwrap();
+    Command::new("rustfmt")
+        .arg(format!("{}", out_dir.join("raw_ops.rs").display()))
+        .status()
+        .unwrap()
+        .success()
+        .then_some(())
+        .unwrap();
 }

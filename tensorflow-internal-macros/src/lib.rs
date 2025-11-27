@@ -287,7 +287,7 @@ impl<'a> ToTokens for BuildFn<'a> {
                 let mut graph = scope.graph_mut();
                 let mut nd = graph.new_operation(#op_name, &name)?;
                 #(
-                    nd.add_input(#arg_names);
+                    nd.add_input(#arg_names.into());
                 )*
                 for op in &self.control_inputs {
                     nd.add_control_input(op);

@@ -173,19 +173,18 @@ impl<'a> WhileBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::super::DataType;
-    use super::super::Operation;
     use super::super::Session;
     use super::super::SessionOptions;
     use super::super::SessionRunArgs;
     use super::super::Tensor;
     use super::*;
 
-    fn constant(graph: &mut Graph, name: &str, value: i32) -> Operation {
+    fn constant(graph: &mut Graph, name: &str, value: i32) -> Output {
         let value = Tensor::<i32>::new(&[]).with_values(&[value]).unwrap();
         let mut nd = graph.new_operation("Const", name).unwrap();
         nd.set_attr_type("dtype", DataType::Int32).unwrap();
         nd.set_attr_tensor("value", value).unwrap();
-        nd.finish().unwrap()
+        nd.finish().unwrap().output(0)
     }
 
     fn while_cond(graph: &mut Graph, inputs: &[Output]) -> Result<Output> {
@@ -193,11 +192,11 @@ mod tests {
         let counter = inputs[0].clone();
         let less = {
             let mut nd = graph.new_operation("Less", "less").unwrap();
-            nd.add_input(counter.operation);
+            nd.add_input(counter.operation.output(0));
             nd.add_input(ten);
             nd.finish().unwrap()
         };
-        Ok(less.into())
+        Ok(less.output(0))
     }
 
     fn while_body(graph: &mut Graph, inputs: &[Output]) -> Result<Vec<Output>> {
@@ -209,7 +208,7 @@ mod tests {
             nd.add_input(two);
             nd.finish().unwrap()
         };
-        Ok(vec![mul.into()])
+        Ok(vec![mul.output(0)])
     }
 
     #[test]

@@ -49,7 +49,8 @@ fn build_layer<O1: Into<Output>>(
         .initial_value(
             ops::RandomStandardNormal::new()
                 .dtype(DataType::Float)
-                .build(w_shape, scope)?,
+                .build(w_shape.output(0), scope)?
+                .output(0),
         )
         .data_type(DataType::Float)
         .shape([input_size, output_size])
@@ -61,11 +62,11 @@ fn build_layer<O1: Into<Output>>(
         vec![w.clone(), b.clone()],
         activation(
             ops::add(
-                ops::mat_mul(input, w.output().clone(), scope)?,
+                ops::mat_mul(input.into(), w.output().clone(), scope)?.output(0),
                 b.output().clone(),
                 scope,
             )?
-            .into(),
+            .output(0),
             scope,
         )?,
     ))
@@ -116,23 +117,23 @@ fn build_and_train_and_save<P: AsRef<Path>>(save_dir: P) -> Result<(), Box<dyn E
         .build(&mut scope.with_op_name("label"))?;
     let mut custom_variables = Vec::new();
     let (variables_hidden, hidden_layer) = build_layer(
-        input.clone(),
+        input.output(0),
         2,
         hidden_size,
-        &|x, scope| Ok(ops::tanh(x, scope)?.into()),
+        &|x, scope| Ok(ops::tanh(x, scope)?.output(0)),
         scope,
     )?;
     custom_variables.extend(variables_hidden);
     let (variables_output, output_layer) =
-        build_layer(hidden_layer.clone(), hidden_size, 1, &|x, _| Ok(x), scope)?;
-    let error = ops::sub(output_layer.clone(), label.clone(), scope)?;
-    let error_squared = ops::mul(error.clone(), error, scope)?;
+        build_layer(hidden_layer, hidden_size, 1, &|x, _| Ok(x), scope)?;
+    let error = ops::sub(output_layer.clone(), label.output(0), scope)?;
+    let error_squared = ops::mul(error.output(0), error.output(0), scope)?;
     let mut optimizer = AdadeltaOptimizer::new();
-    optimizer.set_learning_rate(ops::constant(1.0f32, scope)?);
+    optimizer.set_learning_rate(ops::constant(1.0f32, scope)?.output(0));
     custom_variables.extend(variables_output);
     let (minimizer_variables, minimize) = optimizer.minimize(
         scope,
-        error_squared.clone().into(),
+        error_squared.output(0),
         MinimizeOptions::default().with_variables(&custom_variables),
     )?;
 
