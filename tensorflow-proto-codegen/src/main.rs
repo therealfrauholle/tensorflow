@@ -72,7 +72,6 @@ fn main() {
         .include(Path::new(tensorflow_folder).join("third_party/xla/third_party/tsl"))
         .run()
         .unwrap();
-    #[allow(clippy::uninlined_format_args)]
     protoc_rust::Codegen::new()
         .out_dir(
             output_folder
