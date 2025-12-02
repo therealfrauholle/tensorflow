@@ -2,7 +2,6 @@ extern crate protoc_rust;
 
 use std::env;
 use std::path::Path;
-use std::result::Result;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -21,7 +20,7 @@ fn main() {
                 "third_party/xla/third_party/tsl/tsl/protobuf/rpc_options.proto",
             ]
             .iter()
-            .map(|p| format!("{}/{}", tensorflow_folder, p))
+            .map(|p| format!("{tensorflow_folder}/{p}"))
             .collect::<Vec<_>>(),
         )
         .include(Path::new(tensorflow_folder).join("third_party/xla/third_party/tsl"))
@@ -66,13 +65,14 @@ fn main() {
                 "tensorflow/core/protobuf/verifier_config.proto",
             ]
             .iter()
-            .map(|p| format!("{}/{}", tensorflow_folder, p))
+            .map(|p| format!("{tensorflow_folder}/{p}"))
             .collect::<Vec<_>>(),
         )
         .include(tensorflow_folder)
         .include(Path::new(tensorflow_folder).join("third_party/xla/third_party/tsl"))
         .run()
         .unwrap();
+    #[allow(clippy::uninlined_format_args)]
     protoc_rust::Codegen::new()
         .out_dir(
             output_folder
@@ -80,36 +80,20 @@ fn main() {
                 .to_str()
                 .expect("Unable to format output path for ops crate"),
         )
-        .inputs([
-            &format!(
-                "{}/tensorflow/core/framework/attr_value.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/full_type.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/op_def.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/resource_handle.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/tensor.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/tensor_shape.proto",
-                tensorflow_folder
-            ),
-            &format!(
-                "{}/tensorflow/core/framework/types.proto",
-                tensorflow_folder
-            ),
-        ])
+        .inputs(
+            [
+                "tensorflow/core/framework/attr_value.proto",
+                "tensorflow/core/framework/full_type.proto",
+                "tensorflow/core/framework/op_def.proto",
+                "tensorflow/core/framework/resource_handle.proto",
+                "tensorflow/core/framework/tensor.proto",
+                "tensorflow/core/framework/tensor_shape.proto",
+                "tensorflow/core/framework/types.proto",
+            ]
+            .iter()
+            .map(|p| format!("{tensorflow_folder}/{p}"))
+            .collect::<Vec<_>>(),
+        )
         .include(tensorflow_folder)
         .run()
         .unwrap();

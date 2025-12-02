@@ -17,7 +17,7 @@ fn join(sep: &str, left: &str, right: &str) -> String {
     match (left, right) {
         ("", _) => right.to_string(),
         (_, "") => left.to_string(),
-        _ => format!("{}{}{}", left, sep, right),
+        _ => format!("{left}{sep}{right}"),
     }
 }
 

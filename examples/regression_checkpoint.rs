@@ -24,8 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Code::NotFound,
                 &format!(
                     "Run 'python regression_checkpoint.py' to generate \
-                     {} and try again.",
-                    filename
+                     {filename} and try again."
                 ),
             )
             .unwrap(),

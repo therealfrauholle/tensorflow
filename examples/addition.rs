@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Check our results.
     let z_res: i32 = args.fetch(z)?[0];
-    println!("{:?}", z_res);
+    println!("{z_res:?}");
 
     Ok(())
 }

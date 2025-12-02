@@ -1342,7 +1342,7 @@ fn format_tensor<T: TensorType, TENSOR: AnyTensor + Deref<Target = [T]>>(
             std::any::type_name::<T>()
         )?;
         write_tensor_pretty(f, tensor, dims, &mut counter)?;
-        write!(f, ",\n    dtype: {dtype},\n    shape: {:?}\n}}", dims,)?;
+        write!(f, ",\n    dtype: {dtype},\n    shape: {dims:?}\n}}")?;
     } else {
         if tensor.is_empty() {
             write!(

@@ -401,7 +401,7 @@ impl<'a> Op<'a> {
                 .for_each(|retval| unsafe { tf::TFE_DeleteTensorHandle(*retval) });
             let status = Status::new_set_lossy(
                 Code::InvalidArgument,
-                &format!("Expected {} outputs, got {}", N, num_retvals),
+                &format!("Expected {N} outputs, got {num_retvals}"),
             );
             return Err(status);
         }

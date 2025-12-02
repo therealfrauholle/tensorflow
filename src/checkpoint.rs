@@ -163,7 +163,7 @@ impl CheckpointMaker {
                         operation: restore_op.clone(),
                         index: i as i32,
                     },
-                    &mut self.scope.new_sub_scope(format!("restore{}", i).as_str()),
+                    &mut self.scope.new_sub_scope(format!("restore{i}").as_str()),
                 )?);
             }
             let mut no_op = ops::NoOp::new();

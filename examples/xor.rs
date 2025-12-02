@@ -193,11 +193,11 @@ fn build_and_train_and_save<P: AsRef<Path>>(save_dir: P) -> Result<(), Box<dyn E
     // ===================
     for i in 0..4 {
         let error = train(&session, i, &error_squared, &minimize, &input, &label)?;
-        println!("Error after training: {}", error);
+        println!("Error after training: {errors}");
         if error > 0.1 {
             return Err(Box::new(Status::new_set(
                 Code::Internal,
-                &format!("Error too high: {}", error),
+                &format!("Error too high: {error}"),
             )?));
         }
     }
@@ -234,7 +234,7 @@ fn eval<P: AsRef<Path>>(save_dir: P) -> Result<(), Box<dyn Error>> {
         if error > 0.1 {
             return Err(Box::new(Status::new_set(
                 Code::Internal,
-                &format!("Error too high: {}", error),
+                &format!("Error too high: {error}"),
             )?));
         }
     }

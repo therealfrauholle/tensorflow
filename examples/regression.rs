@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Code::NotFound,
                 &format!(
                     "Run 'python regression.py' to generate \
-                     {} and try again.",
+                     {filename} and try again.",
                     filename
                 ),
             )

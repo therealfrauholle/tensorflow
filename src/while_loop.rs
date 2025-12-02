@@ -143,7 +143,7 @@ impl<'a> WhileBuilder<'a> {
                 // Include /Merge because while_loop_{} doesn't describe an
                 // operation on its own.
                 let while_loop_index = self.graph.generate_operation_name("while_loop_{}/Merge")?;
-                CString::new(format!("while_loop_{}", while_loop_index))?
+                CString::new(format!("while_loop_{while_loop_index}"))?
             }
             Some(name) => name,
         };

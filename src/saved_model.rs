@@ -201,20 +201,14 @@ impl SignatureDef {
     /// Returns the given input parameter.
     pub fn get_input(&self, name: &str) -> Result<&TensorInfo> {
         self.inputs.get(name).ok_or_else(|| {
-            Status::new_set_lossy(
-                Code::InvalidArgument,
-                &format!("Input '{}' not found", name),
-            )
+            Status::new_set_lossy(Code::InvalidArgument, &format!("Input '{name}' not found"))
         })
     }
 
     /// Returns the given output parameter.
     pub fn get_output(&self, name: &str) -> Result<&TensorInfo> {
         self.outputs.get(name).ok_or_else(|| {
-            Status::new_set_lossy(
-                Code::InvalidArgument,
-                &format!("Output '{}' not found", name),
-            )
+            Status::new_set_lossy(Code::InvalidArgument, &format!("Output '{name}' not found"))
         })
     }
 
@@ -266,7 +260,7 @@ impl MetaGraphDef {
             .map_err(|e| {
                 Status::new_set_lossy(
                     Code::InvalidArgument,
-                    &format!("Invalid serialized MetaGraphDef: {}", e),
+                    &format!("Invalid serialized MetaGraphDef: {e}"),
                 )
             })?;
         let mut signatures = HashMap::new();
@@ -284,7 +278,7 @@ impl MetaGraphDef {
     /// Returns the specified signature.
     pub fn get_signature(&self, name: &str) -> Result<&SignatureDef> {
         self.signatures.get(name).ok_or_else(|| {
-            Status::new_set_lossy(Code::Internal, &format!("Signature '{}' not found", name))
+            Status::new_set_lossy(Code::Internal, &format!("Signature '{name}' not found"))
         })
     }
 }
@@ -459,7 +453,7 @@ impl SavedModelSaver {
                         Err(e) => {
                             return Err(Status::new_set_lossy(
                                 Code::InvalidArgument,
-                                &format!("Unable to encode variable definition: {}", e),
+                                &format!("Unable to encode variable definition: {e}"),
                             ));
                         }
                     },
@@ -498,7 +492,7 @@ impl SavedModelSaver {
         let graph_def = protobuf::Message::parse_from_bytes(&graph_bytes).map_err(|e| {
             SaveModelError::from(Status::new_set_lossy(
                 Code::InvalidArgument,
-                &format!("Unable to parse graph definition: {}", e),
+                &format!("Unable to parse graph definition: {e}"),
             ))
         })?;
         meta_graph.set_graph_def(graph_def);

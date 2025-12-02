@@ -2857,9 +2857,7 @@ mod tests {
         let mut g = Graph::new();
         for i in 0..5 {
             assert_eq!(i, g.generate_operation_name("foo_{}").unwrap());
-            let mut nd = g
-                .new_operation("Placeholder", &format!("foo_{}", i))
-                .unwrap();
+            let mut nd = g.new_operation("Placeholder", &format!("foo_{i}")).unwrap();
             nd.set_attr_type("dtype", DataType::Float).unwrap();
             nd.set_attr_shape("shape", &Shape(Some(vec![]))).unwrap();
             nd.finish().unwrap();
