@@ -311,10 +311,7 @@ fn inst_edge_method(
                 let dynamic_offset = (#edge_index) as i32;
                 let mut ret = vec![];
                 for i in dynamic_offset..self.op.get_attr_int(#name_attr)? as i32 {
-                    ret.push(crate::#edge_type {
-                        operation: self.op.clone(),
-                        index: i
-                    });
+                    ret.push(O::#edge_type(&self.op.clone(), 1));
                 }
 
                 Ok(ret)
@@ -331,10 +328,7 @@ fn inst_edge_method(
             #[doc = " operation."]
             pub fn #rust_name(&self) -> crate::Result<crate::#edge_type>{
                 let offset = (#edge_index) as i32;
-                Ok(crate::#edge_type {
-                    operation: self.op.clone(),
-                    index: offset
-                })
+                Ok(O::#edge_type(&self.op, offset))
             }
         }
     }
@@ -531,19 +525,19 @@ fn per_op_code(op: &Operation) -> TokenStream {
         #[doc = #c_name]
         #[doc ="' Operation with it's Outputs and Inputs exposed as methods."]
         #[derive(Debug, Clone)]
-        pub struct #inst_name {
+        pub struct #inst_name<O> {
             #[doc = "An instance of a fully built "]
             #[doc = #c_name]
             #[doc =" Operation in a Tensorflow graph."]
-            pub op: crate::Operation
+            pub op: O
         }
 
-        impl #inst_name {
+        impl<O: Clone> #inst_name<O> {
             #(#output_getter)*
             #(#input_getter)*
         }
 
-        impl From<#inst_name> for crate::Operation {
+        impl<O> From<#inst_name<O>> for O {
             fn from(inst: #inst_name) -> crate::Operation {
                 inst.op
             }
