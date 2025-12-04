@@ -302,7 +302,7 @@ impl Graph {
         &mut self,
         op_type: &str,
         operation_name: &str,
-    ) -> std::result::Result<OperationDescription<'_>, NulError> {
+    ) -> std::result::Result<OperationDescription, NulError> {
         let c_op_type = CString::new(op_type)?;
         let c_operation_name = CString::new(operation_name)?;
         unsafe {
@@ -312,7 +312,7 @@ impl Graph {
                     c_op_type.as_ptr(),
                     c_operation_name.as_ptr(),
                 ),
-                graph: self,
+                graph: self.gimpl.clone(),
                 finished: false,
             })
         }
@@ -1799,15 +1799,15 @@ impl Display for OutputName {
 /// goes out of scope,
 /// so `finish()` will be called on drop if it was not already called.
 #[derive(Debug)]
-pub struct OperationDescription<'a> {
+pub struct OperationDescription {
     inner: *mut tf::TF_OperationDescription,
     // This keeps self from outliving the Graph, which is required by
     // the docs on TF_NewOperation.
-    graph: &'a Graph,
+    graph: Arc<GraphImpl>,
     finished: bool,
 }
 
-impl<'a> Drop for OperationDescription<'a> {
+impl Drop for OperationDescription {
     fn drop(&mut self) {
         if !self.finished {
             unsafe {
@@ -1822,7 +1822,7 @@ impl<'a> Drop for OperationDescription<'a> {
     }
 }
 
-impl<'a> OperationDescription<'a> {
+impl OperationDescription {
     /// Builds the operation and adds it to the graph.
     pub fn finish(mut self) -> Result<Operation> {
         self.finished = true; // used by the drop code
@@ -1831,7 +1831,7 @@ impl<'a> OperationDescription<'a> {
         if status.is_ok() {
             Ok(Operation {
                 inner: operation,
-                gimpl: self.graph.gimpl.clone(),
+                gimpl: self.graph.clone(),
             })
         } else {
             Err(status)
