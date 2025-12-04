@@ -722,6 +722,25 @@ pub fn generate<W: Write>(ops_pbtxt: &[u8], mut output: W) -> Result<(), Box<dyn
     let mut fn_escaper = Escaper::new(&keywords);
     let mut struct_escaper = Escaper::new(&keywords);
     for op in ops {
+        if ![
+            "Placeholder",
+            "Add",
+            "Sub",
+            "Mul",
+            "Assign",
+            "NoOp",
+            "ApplyGradientDescent",
+            "RandomStandardNormal",
+            "Tanh",
+            "MatMul",
+            "ZerosLike",
+            "ApplyAdadelta",
+            "ConcatV2",
+        ]
+        .contains(&op.name.as_str())
+        {
+            continue;
+        }
         define_op(
             &mut output,
             &keywords,

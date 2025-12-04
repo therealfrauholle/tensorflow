@@ -591,6 +591,7 @@ pub fn generate<W: Write>(ops_pbtxt: &[u8], mut output: W) -> Result<(), Box<dyn
             "MatMul",
             "ZerosLike",
             "ApplyAdadelta",
+            "ConcatV2",
         ]
         .contains(&op.name.as_str())
         {
